@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocAvail - Find Available Doctors</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+    /* ─── SLOT MANAGE ─── */
+    .slot-manage-row { display:flex; align-items:center; gap:10px; background:#f8fafc; border-radius:10px; padding:10px 14px; margin-bottom:8px; }
+    .slot-manage-row .slot-info { flex:1; }
+    .slot-manage-row .slot-date { font-weight:700; font-size:.88rem; color:#1e293b; }
+    .slot-manage-row .slot-meta { font-size:.78rem; color:#64748b; }
+    .slot-fill { font-size:.75rem; background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:6px; white-space:nowrap; }
+    .btn-del-slot  { background:#fee2e2; color:#dc2626; border:none; border-radius:8px; padding:5px 10px; cursor:pointer; font-size:.78rem; font-weight:600; }
+    .btn-edit-slot { background:#dbeafe; color:#1d4ed8; border:none; border-radius:8px; padding:5px 10px; cursor:pointer; font-size:.78rem; font-weight:600; margin-right:4px; }
+    .add-slot-form { background:#f0f9ff; border-radius:14px; padding:14px 16px; margin-bottom:14px; }
+    .add-slot-form h4 { margin:0 0 10px; color:#0369a1; font-size:.9rem; }
+    .slot-form-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px; }
+    .slot-form-row input, .slot-form-row select { padding:7px 9px; border:1.5px solid #bae6fd; border-radius:8px; font-size:.82rem; }
+    .btn-add-slot { background:#0ea5e9; color:#fff; border:none; border-radius:8px; padding:8px 18px; cursor:pointer; font-weight:600; font-size:.85rem; }
+    /* Edit slot modal */
+    #edit-slot-modal .modal-card { max-width:380px; }
+    /* Booking row */
+    .booking-row { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:13px; margin-bottom:10px; }
+    .booking-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+    .booking-id { font-weight:700; font-size:.82rem; color:#3b82f6; }
+    .booking-datetime { font-size:.78rem; color:#64748b; }
+    .booking-patient { font-weight:600; font-size:.92rem; color:#1e293b; }
+    .booking-details { font-size:.78rem; color:#64748b; margin-top:3px; }
+    .btn-cancel-booking { background:#fee2e2; color:#dc2626; border:none; border-radius:8px; padding:5px 11px; cursor:pointer; font-size:.78rem; font-weight:600; }
+    .booking-remove-btn { background:#1e293b; color:#fff; border:none; border-radius:8px; padding:5px 11px; cursor:pointer; font-size:.72rem; font-weight:600; }
+    .btn-clear-history { background:#fef3c7; color:#92400e; border:1.5px solid #fcd34d; border-radius:10px; padding:8px 18px; cursor:pointer; font-weight:600; font-size:.85rem; margin-bottom:12px; width:100%; }
+    /* availability last-updated realtime */
+    .last-updated-ts { font-size:.7rem; color:#94a3b8; font-family: monospace; }
+    .booking-date-btn.no-slots { opacity:.45; cursor:default; }
+    .booking-date-btn.no-slots:hover { transform:none; border-color:var(--gray-200); }
+    /* ─── EMERGENCY PANEL — blends with home theme ─── */
+    @keyframes empSlideIn {
+        from { opacity:0; transform:translateY(-12px); }
+        to   { opacity:1; transform:translateY(0); }
+    }
+    @keyframes empPulse {
+        0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,.25); }
+        50%      { box-shadow: 0 0 0 8px rgba(220,38,38,0); }
+    }
+
+    /* Panel sits below gradient header, white bg like other cards */
+    .emergency-inline-panel {
+        display: none;
+        background: #fff;
+        border-radius: 0 0 24px 24px;
+        margin: 0 0 0 0;
+        border-top: 3px solid #dc2626;
+        box-shadow: 0 8px 32px rgba(220,38,38,.12), 0 2px 8px rgba(0,0,0,.06);
+        overflow: hidden;
+        animation: empSlideIn .25s cubic-bezier(.4,0,.2,1);
+    }
+    .emergency-inline-panel.visible { display: block; }
+
+    /* Coloured banner at top of panel */
+    .emp-banner {
+        background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+        padding: 14px 18px;
+        display: flex; align-items: center; justify-content: space-between; gap:10px;
+    }
+    .emp-banner-left { display:flex; align-items:center; gap:10px; }
+    .emp-banner-icon {
+        width:36px; height:36px; background:rgba(255,255,255,.2); border-radius:10px;
+        display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0;
+        animation: empPulse 1.8s ease-in-out infinite;
+    }
+    .emp-banner-title { font-size:.98rem; font-weight:800; color:#fff; letter-spacing:-.01em; }
+    .emp-banner-sub   { font-size:.74rem; color:rgba(255,255,255,.8); margin-top:1px; }
+    .emp-close {
+        background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.3);
+        color: #fff; border-radius: 8px; padding: 6px 12px;
+        cursor: pointer; font-size: .78rem; font-weight: 700;
+        white-space: nowrap; transition: background .2s; flex-shrink:0;
+    }
+    .emp-close:hover { background: rgba(255,255,255,.35); }
+
+    /* Body of the panel — white, like the rest of the app */
+    .emp-body { padding: 14px 16px 18px; }
+
+    /* Location bar — subtle, matches search-box style */
+    .emp-loc-bar {
+        display: flex; align-items: flex-start; gap: 8px;
+        background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 10px;
+        padding: 9px 12px; font-size: .78rem; color: #166534;
+        line-height: 1.5; word-break: break-word; margin-bottom: 14px;
+    }
+    .emp-loc-bar.locating { background:#eff6ff; border-color:#bfdbfe; color:#1e40af; }
+    .emp-loc-bar.error    { background:#fef2f2; border-color:#fecaca; color:#991b1b; }
+
+    /* Section headings — match filter-label style */
+    .emp-section-title {
+        font-size: .72rem; font-weight: 800; color: #6b7280;
+        text-transform: uppercase; letter-spacing: .08em;
+        margin: 14px 0 8px; display: flex; align-items: center; gap: 6px;
+    }
+    .emp-section-title::after {
+        content:''; flex:1; height:1px; background:#e5e7eb;
+    }
+
+    /* Grid matches home hospital-card layout */
+    .emp-results-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media(min-width:580px) { .emp-results-grid { grid-template-columns: 1fr 1fr; } }
+
+    /* Cards — match hospital-card style */
+    .emp-card {
+        background: #f9fafb; border: 1.5px solid #e5e7eb;
+        border-radius: 14px; padding: 13px 14px;
+        transition: border-color .2s, box-shadow .2s;
+    }
+    .emp-card:hover { border-color: #fca5a5; box-shadow: 0 2px 12px rgba(220,38,38,.08); }
+    .emp-card-icon-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+    .emp-card-type-badge {
+        font-size:.65rem; font-weight:700; padding:2px 8px; border-radius:20px;
+        background:#fee2e2; color:#dc2626; text-transform:uppercase; letter-spacing:.04em;
+    }
+    .emp-card-type-badge.doc { background:#dbeafe; color:#1d4ed8; }
+    .emp-card-name { font-weight:700; font-size:.9rem; color:#111827; margin-bottom:3px; }
+    .emp-card-detail { font-size:.77rem; color:#6b7280; margin-bottom:6px; line-height:1.4; }
+    .emp-card-dist {
+        display: inline-flex; align-items:center; gap:4px;
+        font-size:.72rem; font-weight:700; color:#dc2626;
+        background:#fff; border:1.5px solid #fecaca;
+        padding:3px 10px; border-radius:20px; margin-bottom:8px;
+    }
+    .emp-btn-row { display:flex; gap:8px; flex-wrap:wrap; }
+
+    /* Call = red filled, Directions = outline — both match app button style */
+    .emp-call-btn {
+        flex:1; min-width:70px; display:flex; align-items:center; justify-content:center; gap:5px;
+        background:#dc2626; color:#fff; border:none;
+        padding:8px 12px; border-radius:10px; font-weight:700;
+        cursor:pointer; font-size:.8rem; transition:background .2s;
+    }
+    .emp-call-btn:hover { background:#b91c1c; }
+    .emp-map-btn {
+        flex:1; min-width:70px; display:flex; align-items:center; justify-content:center; gap:5px;
+        background:#fff; color:#2563eb; border:1.5px solid #bfdbfe;
+        padding:8px 12px; border-radius:10px; font-weight:700;
+        cursor:pointer; font-size:.8rem; transition:all .2s;
+    }
+    .emp-map-btn:hover { background:#eff6ff; border-color:#93c5fd; }
+
+    /* Hotlines row — styled like filter chips */
+    .emp-hotlines { display:flex; gap:8px; flex-wrap:wrap; }
+    .emp-hotlines button {
+        flex:1; min-width:64px;
+        background:#fff; color:#dc2626; border:1.5px solid #fecaca;
+        padding:9px 8px; border-radius:10px; font-weight:700;
+        cursor:pointer; font-size:.85rem; transition:all .2s;
+        display:flex; align-items:center; justify-content:center; gap:4px;
+    }
+    .emp-hotlines button:hover { background:#fef2f2; border-color:#f87171; }
+
+    /* Location footer */
+    .emp-my-loc { text-align:center; margin-top:12px; font-size:.71rem; color:#9ca3af; }
+    /* ─── RESPONSIVE FULL-WIDTH ─── */
+    .home-wrap { width:100%; max-width:100%; margin:0; padding:0 0 80px; }
+    @media(min-width:900px){ .home-wrap { padding:0 0 80px; } }
+    #hospital-dashboard .home-wrap, #clinic-dashboard .home-wrap { padding-bottom:32px; }
+    .dash-header-bar { padding:16px 20px; }
+    .stats-row, #stats-grid { padding:16px 16px 8px; gap:12px; }
+    .stat-pill { flex:1; min-width:0; }
+    .dashboard-list, .dash-doctors-panel, #dash-slots-panel, #dash-bookings-panel { padding:0 16px; }
+    .add-slot-form { margin:12px 16px; }
+    </style>
+</head>
+<body>
+
+<!-- ========== SPLASH ========== -->
+<div id="splash-screen" class="screen active">
+    <div class="splash-content">
+        <div class="splash-pulse"></div>
+        <div class="splash-logo">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+        </div>
+        <h1>DocAvail</h1>
+        <p>Healthcare at your fingertips</p>
+    </div>
+</div>
+
+<!-- ========== WELCOME ========== -->
+<div id="welcome-screen" class="screen">
+    <div class="welcome-bg"></div>
+    <div class="welcome-container">
+        <div class="welcome-header">
+            <div class="welcome-logo">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+            </div>
+            <h1>DocAvail</h1>
+            <p>Find available doctors, hospitals &amp; clinics near you</p>
+        </div>
+        <div class="welcome-section-label">For Patients</div>
+        <div class="welcome-cards">
+            <button class="welcome-card card-patient" onclick="navigateToScreen('patient-login')">
+                <div class="wcard-icon">🧑‍⚕️</div>
+                <div class="wcard-text"><strong>I'm a Patient</strong><span>Find doctors &amp; book appointments</span></div>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+        </div>
+        <div class="welcome-section-label">For Healthcare Providers</div>
+        <div class="welcome-cards">
+            <button class="welcome-card card-hospital" onclick="navigateToScreen('hospital-login')">
+                <div class="wcard-icon">🏥</div>
+                <div class="wcard-text"><strong>Hospital Login</strong><span>Manage hospital doctors &amp; availability</span></div>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+            <button class="welcome-card card-clinic" onclick="navigateToScreen('clinic-login')">
+                <div class="wcard-icon">🏠</div>
+                <div class="wcard-text"><strong>Clinic / Home Practice</strong><span>Independent clinic doctor login</span></div>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+        </div>
+        <div class="welcome-features">
+            <div class="feat">🔍 Smart Search</div>
+            <div class="feat">📍 GPS Emergency</div>
+            <div class="feat">🎙️ Voice Search</div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== PATIENT LOGIN ========== -->
+<div id="patient-login" class="screen">
+    <div class="auth-container">
+        <button class="back-btn" onclick="navigateToScreen('welcome')">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="auth-icon">🧑‍⚕️</div>
+        <h2>Patient Access</h2>
+        <p class="auth-sub">Login or create a new account</p>
+        <div class="auth-tabs">
+            <div class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Login</div>
+            <div class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Create Account</div>
+        </div>
+        <form id="patient-login-form" class="auth-form" onsubmit="handlePatientLogin(event)">
+            <div class="form-group"><label>Email</label><input type="email" id="login-email" required placeholder="your@email.com"></div>
+            <div class="form-group"><label>Password</label><input type="password" id="login-password" required placeholder="Enter password"></div>
+            <p id="login-error" style="color:#ef4444;font-size:.85rem;display:none;"></p>
+            <button type="submit" class="btn-primary-full">Login</button>
+        </form>
+        <form id="patient-register-form" class="auth-form" style="display:none" onsubmit="handlePatientRegister(event)">
+            <div class="form-group"><label>Full Name</label><input type="text" id="reg-name" required placeholder="Your full name"></div>
+            <div class="form-group"><label>Email</label><input type="email" id="reg-email" required placeholder="your@email.com"></div>
+            <div class="form-group"><label>Phone</label><input type="tel" id="reg-phone" required placeholder="Phone number"></div>
+            <div class="form-group"><label>Age</label><input type="number" id="reg-age" required placeholder="Your age" min="1" max="120"></div>
+            <div class="form-group"><label>Password</label><input type="password" id="reg-password" required placeholder="Create password"></div>
+            <p id="register-error" style="color:#ef4444;font-size:.85rem;display:none;"></p>
+            <p id="register-success" style="color:#16a34a;font-size:.85rem;display:none;"></p>
+            <button type="submit" class="btn-primary-full">Create Account</button>
+        </form>
+    </div>
+</div>
+
+<!-- ========== HOSPITAL LOGIN ========== -->
+<div id="hospital-login" class="screen">
+    <div class="auth-page hospital-auth-page">
+        <div class="auth-container">
+            <button class="back-btn" onclick="navigateToScreen('welcome')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div class="auth-brand hospital-brand">
+                <div class="auth-brand-icon">🏥</div>
+                <div class="auth-brand-badge">HOSPITAL PORTAL</div>
+            </div>
+            <h2>Hospital Dashboard</h2>
+            <p class="auth-sub">Manage doctors and availability</p>
+            <form class="auth-form" onsubmit="handleHospitalLogin(event)">
+                <div class="form-group">
+                    <label>Hospital ID</label>
+                    <input type="text" id="hospital-id-input" required placeholder="e.g. 1, 2, 3...">
+                    <span class="input-hint">Hospitals are numbered 1–5</span>
+                </div>
+                <div class="form-group">
+                    <label>Admin Password</label>
+                    <input type="password" id="hosp-pass-input" required placeholder="••••••••">
+                    <span class="input-hint">Default password: hospital123</span>
+                </div>
+                <p id="hosp-login-error" style="color:#ef4444;font-size:.85rem;display:none;"></p>
+                <button type="submit" class="btn-primary-full btn-hospital-login">Login to Hospital Dashboard</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ========== CLINIC LOGIN ========== -->
+<div id="clinic-login" class="screen">
+    <div class="auth-page clinic-auth-page">
+        <div class="auth-container">
+            <button class="back-btn" onclick="navigateToScreen('welcome')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div class="auth-brand clinic-brand">
+                <div class="auth-brand-icon">🏠</div>
+                <div class="auth-brand-badge">CLINIC PORTAL</div>
+            </div>
+            <h2>Clinic / Home Practice</h2>
+            <p class="auth-sub">Independent clinic &amp; home-practice login</p>
+            <div class="clinic-info-strip">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                Use your Clinic ID &amp; clinic password — not a hospital ID
+            </div>
+            <form class="auth-form" onsubmit="handleClinicLogin(event)">
+                <div class="form-group">
+                    <label>Clinic ID</label>
+                    <input type="text" id="clinic-id-input" required placeholder="e.g. 101, 102, 103...">
+                    <span class="input-hint">Clinic IDs start from 101</span>
+                </div>
+                <div class="form-group">
+                    <label>Clinic Password</label>
+                    <input type="password" id="clinic-password-input" required placeholder="••••••••">
+                    <span class="input-hint">Default: clinic + your ID (e.g. clinic101)</span>
+                </div>
+                <button type="submit" class="btn-primary-full btn-clinic-login">Login to Clinic Dashboard</button>
+                <p id="clinic-login-error" style="color:#ef4444;font-size:.85rem;display:none;margin-top:8px;"></p>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ========== PATIENT HOME ========== -->
+<div id="hospital-list-screen" class="screen">
+    <div class="home-wrap">
+        <header class="home-header">
+            <div class="header-left">
+                <div class="header-logo">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                </div>
+                <div>
+                    <h1>DocAvail</h1>
+                    <p id="patient-welcome-text">Find available doctors</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <span class="welcome-badge" id="patient-greeting-badge" style="display:none">✅ <span id="greeting-name">Welcome!</span></span>
+                <button class="btn-logout" onclick="logoutPatient()">↪ Logout</button>
+            </div>
+        </header>
+
+        <!-- ── INLINE EMERGENCY PANEL ── -->
+        <div class="emergency-inline-panel" id="emergency-inline-panel">
+            <div class="emp-banner">
+                <div class="emp-banner-left">
+                    <div class="emp-banner-icon">🚨</div>
+                    <div>
+                        <div class="emp-banner-title">Emergency Mode</div>
+                        <div class="emp-banner-sub">Finding nearest hospitals &amp; doctors</div>
+                    </div>
+                </div>
+                <button class="emp-close" onclick="closeEmergencyPanel()">✕ Close</button>
+            </div>
+            <div class="emp-body">
+                <div class="emp-loc-bar locating" id="emp-loc-bar">📡 Detecting your location...</div>
+                <div id="emp-results">
+                    <div style="text-align:center;padding:20px;color:#9ca3af;font-size:.85rem;">Searching nearby hospitals...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search + Filter -->
+        <div class="search-filter-row">
+            <div class="search-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="global-search-input" placeholder="Search hospital, clinic, doctor, specialty..." oninput="handleGlobalSearch()">
+            </div>
+            <button class="btn-filter" onclick="toggleFilterPanel()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                Filters
+            </button>
+        </div>
+
+        <!-- Filter Panel — includes specialist doctor search -->
+        <div class="filter-panel" id="filter-panel" style="display:none;">
+            <div class="filter-panel-header">
+                <h3>Filter, Sort &amp; Find Doctors</h3>
+                <button onclick="toggleFilterPanel()" class="filter-close">✕</button>
+            </div>
+
+            <!-- ── Tab switcher ── -->
+            <div class="filter-tab-row">
+                <button class="filter-tab-btn active" id="ftab-filter" onclick="switchFilterTab('filter')">🔧 Filter &amp; Sort</button>
+                <button class="filter-tab-btn" id="ftab-doctors" onclick="switchFilterTab('doctors')">🩺 Find Doctors</button>
+            </div>
+
+            <!-- ── FILTER & SORT tab ── -->
+            <div id="ftab-filter-content">
+                <div class="filter-section">
+                    <label class="filter-label">Specialty</label>
+                    <div class="filter-chip-group" id="specialty-chips">
+                        <button class="filter-chip active" data-val="All" onclick="setSpecialtyFilter(this)">All</button>
+                        <button class="filter-chip" data-val="Cardiology" onclick="setSpecialtyFilter(this)">❤️ Cardiology</button>
+                        <button class="filter-chip" data-val="Orthopedic" onclick="setSpecialtyFilter(this)">🦴 Orthopedic</button>
+                        <button class="filter-chip" data-val="Pediatrics" onclick="setSpecialtyFilter(this)">👶 Pediatrics</button>
+                        <button class="filter-chip" data-val="General Medicine" onclick="setSpecialtyFilter(this)">🩺 General</button>
+                        <button class="filter-chip" data-val="Dermatology" onclick="setSpecialtyFilter(this)">🧴 Dermatology</button>
+                        <button class="filter-chip" data-val="Neurology" onclick="setSpecialtyFilter(this)">🧠 Neurology</button>
+                        <button class="filter-chip" data-val="Gynecology" onclick="setSpecialtyFilter(this)">👩 Gynecology</button>
+                        <button class="filter-chip" data-val="Oncology" onclick="setSpecialtyFilter(this)">🎗️ Oncology</button>
+                    </div>
+                </div>
+                <div class="filter-section">
+                    <label class="filter-label">Sort By</label>
+                    <div class="filter-btn-group" id="sort-chips">
+                        <button class="filter-sort-btn active" data-val="distance" onclick="setSortFilter(this)">📍 Distance</button>
+                        <button class="filter-sort-btn" data-val="rating" onclick="setSortFilter(this)">⭐ Rating</button>
+                        <button class="filter-sort-btn" data-val="doctorCount" onclick="setSortFilter(this)">👥 Doctor Count</button>
+                    </div>
+                    <div id="distance-loc-status" style="font-size:.75rem;color:#64748b;margin-top:6px;min-height:16px"></div>
+                </div>
+                <button class="btn-apply-filters" onclick="applyFilters()">Apply Filters</button>
+            </div>
+
+            <!-- ── FIND DOCTORS tab ── -->
+            <div id="ftab-doctors-content" style="display:none">
+                <div class="specialist-search-bar" style="margin:0 0 12px">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="specialist-input" placeholder="Doctor name, specialty, hospital..." oninput="searchSpecialists()">
+                </div>
+                <div class="filter-section" style="margin-bottom:10px">
+                    <label class="filter-label">Specialty</label>
+                    <div class="filter-chip-group" id="spec-specialty-chips">
+                        <button class="spec-chip filter-chip active" data-val="All" onclick="setSpecialistSpecialty(this)">All</button>
+                        <button class="spec-chip filter-chip" data-val="Cardiologist" onclick="setSpecialistSpecialty(this)">❤️ Cardiology</button>
+                        <button class="spec-chip filter-chip" data-val="Pediatrician" onclick="setSpecialistSpecialty(this)">👶 Pediatrics</button>
+                        <button class="spec-chip filter-chip" data-val="Dermatologist" onclick="setSpecialistSpecialty(this)">🧴 Dermatology</button>
+                        <button class="spec-chip filter-chip" data-val="Orthopedic" onclick="setSpecialistSpecialty(this)">🦴 Orthopedic</button>
+                        <button class="spec-chip filter-chip" data-val="Neurologist" onclick="setSpecialistSpecialty(this)">🧠 Neurology</button>
+                        <button class="spec-chip filter-chip" data-val="Family Medicine" onclick="setSpecialistSpecialty(this)">🏠 Family</button>
+                        <button class="spec-chip filter-chip" data-val="Gynecologist" onclick="setSpecialistSpecialty(this)">👩 Gynecology</button>
+                        <button class="spec-chip filter-chip" data-val="General Physician" onclick="setSpecialistSpecialty(this)">🩺 General</button>
+                        <button class="spec-chip filter-chip" data-val="Oncologist" onclick="setSpecialistSpecialty(this)">🎗️ Oncology</button>
+                        <button class="spec-chip filter-chip" data-val="Gastroenterologist" onclick="setSpecialistSpecialty(this)">🫁 Gastro</button>
+                    </div>
+                </div>
+                <div class="spec-entity-row" style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    <button class="entity-btn active" data-type="all" onclick="setSpecialistEntity(this,'all')">All</button>
+                    <button class="entity-btn" data-type="hospital" onclick="setSpecialistEntity(this,'hospital')">🏥 Hospital</button>
+                    <button class="entity-btn" data-type="clinic" onclick="setSpecialistEntity(this,'clinic')">🏠 Clinic</button>
+                    <label class="avail-toggle" style="margin-left:auto"><input type="checkbox" id="spec-available-only" onchange="searchSpecialists()"> Available only</label>
+                </div>
+                <div id="specialist-results-count" class="results-count-bar" style="font-size:.78rem;color:#6b7280;margin-bottom:8px"></div>
+                <div id="specialist-results" class="specialist-results-list">
+                    <div class="empty-state" style="padding:20px 0">
+                        <div style="font-size:2.5rem">🔍</div>
+                        <p style="font-size:.85rem;color:#9ca3af;margin-top:6px">Search by name, specialty or hospital</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Search Results -->
+        <div id="global-search-results" style="display:none;" class="global-results-panel">
+            <div class="global-results-header">
+                <span id="global-results-count">0 results found</span>
+                <div class="global-entity-filter">
+                    <button class="entity-btn active" data-type="all" onclick="setEntityFilter(this,'all')">All</button>
+                    <button class="entity-btn" data-type="hospital" onclick="setEntityFilter(this,'hospital')">🏥 Hospital</button>
+                    <button class="entity-btn" data-type="clinic" onclick="setEntityFilter(this,'clinic')">🏠 Clinic</button>
+                </div>
+            </div>
+            <div id="global-results-list" class="global-results-list"></div>
+        </div>
+
+        <!-- Emergency + Voice bar -->
+        <div class="emergency-bar">
+            <button class="btn-emergency" onclick="handleGeoEmergency()">
+                <span class="emergency-pulse"></span>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                🚨 Emergency — Find Nearest (GPS)
+            </button>
+            <button class="btn-voice-mini" onclick="navigateToScreen('voice-assistant')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                Voice
+            </button>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="list-tabs">
+            <button class="list-tab active" id="tab-hospitals" onclick="switchTab('hospitals')">🏥 Hospitals</button>
+            <button class="list-tab" id="tab-clinics" onclick="switchTab('clinics')">🏠 Clinics</button>
+            <button class="list-tab" id="tab-mybookings" onclick="switchTab('mybookings')">📅 My Bookings</button>
+        </div>
+
+        <div id="hospitals-list" class="entity-list"></div>
+        <div id="clinics-list" class="entity-list" style="display:none;"></div>
+        <div id="my-bookings-list" style="display:none;padding:12px 16px;flex-direction:column;gap:10px"></div>
+    </div>
+</div>
+
+<!-- ========== SPECIALIST SEARCH ========== -->
+<div id="specialist-search" class="screen">
+    <div class="home-wrap">
+        <header class="dash-header-bar">
+            <button class="icon-btn" onclick="navigateToScreen('hospital-list-screen')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div class="dash-header-title"><h2>Find a Specialist</h2><p>Search across all hospitals &amp; clinics</p></div>
+        </header>
+        <div class="specialist-search-bar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="specialist-input" placeholder="Search doctor name, specialty..." oninput="searchSpecialists()" autofocus>
+        </div>
+        <div class="specialist-filter-row">
+            <div class="specialist-chips" id="spec-specialty-chips">
+                <button class="spec-chip active" data-val="All" onclick="setSpecialistSpecialty(this)">All</button>
+                <button class="spec-chip" data-val="Cardiologist" onclick="setSpecialistSpecialty(this)">❤️ Cardiology</button>
+                <button class="spec-chip" data-val="Pediatrician" onclick="setSpecialistSpecialty(this)">👶 Pediatrics</button>
+                <button class="spec-chip" data-val="Dermatologist" onclick="setSpecialistSpecialty(this)">🧴 Dermatology</button>
+                <button class="spec-chip" data-val="Orthopedic" onclick="setSpecialistSpecialty(this)">🦴 Orthopedic</button>
+                <button class="spec-chip" data-val="Neurologist" onclick="setSpecialistSpecialty(this)">🧠 Neurology</button>
+                <button class="spec-chip" data-val="Family Medicine" onclick="setSpecialistSpecialty(this)">🏠 Family</button>
+                <button class="spec-chip" data-val="General Physician" onclick="setSpecialistSpecialty(this)">🩺 General</button>
+            </div>
+            <div class="spec-entity-row">
+                <button class="entity-btn active" data-type="all" onclick="setSpecialistEntity(this,'all')">All</button>
+                <button class="entity-btn" data-type="hospital" onclick="setSpecialistEntity(this,'hospital')">🏥 Hospital</button>
+                <button class="entity-btn" data-type="clinic" onclick="setSpecialistEntity(this,'clinic')">🏠 Clinic</button>
+                <label class="avail-toggle"><input type="checkbox" id="spec-available-only" onchange="searchSpecialists()"> Available only</label>
+            </div>
+        </div>
+        <div id="specialist-results-count" class="results-count-bar"></div>
+        <div id="specialist-results" class="specialist-results-list">
+            <div class="empty-state">
+                <div style="font-size:3rem">🔍</div>
+                <p>Type a name or specialty to search specialists</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== DOCTORS LIST ========== -->
+<div id="doctors-list-screen" class="screen">
+    <div class="home-wrap">
+        <header class="dash-header-bar">
+            <button class="icon-btn" onclick="navigateToScreen('hospital-list-screen')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div class="dash-header-title">
+                <h2 id="selected-hospital-name">Hospital</h2>
+                <p id="selected-hospital-info">Doctors</p>
+            </div>
+            <button class="icon-btn" onclick="logoutPatient()">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </button>
+        </header>
+        <div class="search-box" style="margin:0 0 0;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="search-input" placeholder="Search doctors by name, specialty..." oninput="filterDoctors()">
+        </div>
+        <div class="specialty-filter-scroll" id="specialty-filter-bar">
+            <button class="filter-chip active" data-filter="All" onclick="setSpecializationFilter('All', this)">All</button>
+            <button class="filter-chip" data-filter="Cardiologist" onclick="setSpecializationFilter('Cardiologist', this)">Cardiology</button>
+            <button class="filter-chip" data-filter="Pediatrician" onclick="setSpecializationFilter('Pediatrician', this)">Pediatrics</button>
+            <button class="filter-chip" data-filter="Dermatologist" onclick="setSpecializationFilter('Dermatologist', this)">Dermatology</button>
+            <button class="filter-chip" data-filter="Orthopedic" onclick="setSpecializationFilter('Orthopedic', this)">Orthopedics</button>
+            <button class="filter-chip" data-filter="Neurologist" onclick="setSpecializationFilter('Neurologist', this)">Neurology</button>
+            <button class="filter-chip" data-filter="General Physician" onclick="setSpecializationFilter('General Physician', this)">General</button>
+        </div>
+        <div class="doctors-grid" id="doctors-list"></div>
+    </div>
+</div>
+
+<!-- ========== VOICE ASSISTANT (English only) ========== -->
+<div id="voice-assistant" class="screen">
+    <div class="voice-wrap">
+        <button class="back-btn" onclick="navigateToScreen('hospital-list-screen')" style="color:white;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.3)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="voice-body">
+            <h1>Voice Search</h1>
+            <p class="voice-sub">Say a department or hospital name</p>
+            <div class="mic-ring" id="mic-ring">
+                <button class="mic-btn" id="mic-button" onclick="toggleVoiceListening()">
+                    <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                </button>
+                <div class="mic-wave-ring" id="mic-wave-ring"></div>
+            </div>
+            <p class="voice-status" id="voice-status">Tap to speak (English)</p>
+            <div class="voice-transcript-box" id="voice-transcript-box" style="display:none">
+                <div class="transcript-label">You said:</div>
+                <div id="voice-transcript" class="transcript-text"></div>
+            </div>
+            <div class="voice-response-box" id="voice-response-box" style="display:none">
+                <div id="voice-response"></div>
+            </div>
+            <div id="voice-results" style="display:none" class="voice-result-grid"></div>
+            <div class="voice-suggestions">
+                <p>Try saying:</p>
+                <div class="suggestion-row">
+                    <button class="sugg-btn" onclick="startVoiceWithQuery('cardiology')">"Cardiology"</button>
+                    <button class="sugg-btn" onclick="startVoiceWithQuery('pediatrics')">"Pediatrics"</button>
+                    <button class="sugg-btn" onclick="startVoiceWithQuery('orthopedic')">"Orthopedic"</button>
+                    <button class="sugg-btn" onclick="startVoiceWithQuery('KIMS hospital')">"KIMS Hospital"</button>
+                    <button class="sugg-btn" onclick="startVoiceWithQuery('Nair Family Clinic')">"Nair Clinic"</button>
+                    <button class="sugg-btn" onclick="startVoiceWithQuery('emergency')">"Emergency 🚨"</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== DOCTOR DETAIL ========== -->
+<div id="doctor-detail" class="screen">
+    <div class="home-wrap">
+        <header class="dash-header-bar">
+            <button class="icon-btn" id="doctor-detail-back-btn" onclick="navigateToScreen('doctors-list-screen')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div class="dash-header-title"><h2>Doctor Details</h2></div>
+        </header>
+        <div id="doctor-detail-content"></div>
+    </div>
+</div>
+
+<!-- ========== HOSPITAL DASHBOARD ========== -->
+<div id="hospital-dashboard" class="screen">
+    <div class="home-wrap">
+        <header class="dash-header-bar">
+            <button class="icon-btn" onclick="navigateToScreen('welcome')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div class="dash-header-title">
+                <h2 id="hospital-name">Hospital Dashboard</h2>
+                <p id="hospital-location">Manage doctors</p>
+            </div>
+            <button class="icon-btn" onclick="navigateToScreen('welcome')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </button>
+        </header>
+        <div class="stats-row" id="stats-grid">
+            <div class="stat-pill stat-green"><span class="stat-num" id="total-doctors">0</span><span class="stat-lbl">Total Doctors</span></div>
+            <div class="stat-pill stat-blue"><span class="stat-num" id="available-doctors">0</span><span class="stat-lbl">Available Now</span></div>
+            <div class="stat-pill" style="background:linear-gradient(135deg,#DBEAFE,#EDE9FE)"><span class="stat-num" id="total-bookings-stat">0</span><span class="stat-lbl">Total Bookings</span></div>
+        </div>
+        <div class="dash-tabs">
+            <button class="dash-tab active" onclick="switchDashTab('doctors')">👨‍⚕️ Doctors</button>
+            <button class="dash-tab" onclick="switchDashTab('slots')">🕐 Time Slots</button>
+            <button class="dash-tab" onclick="switchDashTab('bookings')">📅 Bookings</button>
+        </div>
+        <!-- Doctors Tab -->
+        <div id="dash-doctors-panel">
+            <div class="dashboard-actions">
+                <h3>Doctors</h3>
+                <button class="btn-add" onclick="showAddDoctorModal()">+ Add Doctor</button>
+            </div>
+            <div id="dashboard-doctors-list" class="dashboard-list"></div>
+        </div>
+        <!-- Slots Tab -->
+        <div id="dash-slots-panel" style="display:none;">
+            <div class="add-slot-form">
+                <h4>➕ Add New Time Slot</h4>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:.82rem;font-weight:600;color:#0369a1;">Doctor</label>
+                    <select id="slot-doctor-select" style="width:100%;padding:7px 10px;border:1.5px solid #bae6fd;border-radius:8px;font-size:.82rem;margin-top:4px;"></select>
+                </div>
+                <div class="slot-form-row">
+                    <div><label style="font-size:.78rem;font-weight:600;color:#0369a1;">Date</label><input type="date" id="slot-date-input"></div>
+                    <div><label style="font-size:.78rem;font-weight:600;color:#0369a1;">Time</label><input type="time" id="slot-time-input"></div>
+                    <div><label style="font-size:.78rem;font-weight:600;color:#0369a1;">Max Patients</label><input type="number" id="slot-max-input" value="5" min="1" max="50"></div>
+                </div>
+                <button class="btn-add-slot" onclick="addNewSlot()">Add Slot</button>
+            </div>
+            <div id="slots-list" style="padding:0 4px;"></div>
+        </div>
+        <!-- Bookings Tab -->
+        <div id="dash-bookings-panel" style="display:none;">
+            <div style="padding:12px 16px 0;">
+                <button class="btn-clear-history" onclick="clearHospitalBookingHistory()">🗑 Clear All Booking History</button>
+            </div>
+            <div id="bookings-list" class="dashboard-list" style="padding:0 16px 16px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== CLINIC DASHBOARD ========== -->
+<div id="clinic-dashboard" class="screen">
+    <div class="home-wrap">
+        <header class="dash-header-bar">
+            <button class="icon-btn" onclick="navigateToScreen('welcome')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div class="dash-header-title">
+                <h2 id="clinic-dash-name">Clinic Dashboard</h2>
+                <p id="clinic-dash-location">Home Practice</p>
+            </div>
+            <button class="icon-btn" onclick="navigateToScreen('welcome')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </button>
+        </header>
+        <div id="clinic-dashboard-content"></div>
+    </div>
+</div>
+
+<!-- ========== ADD/EDIT DOCTOR MODAL ========== -->
+<div id="doctor-modal" class="modal-overlay" style="display:none">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 id="modal-title">Add Doctor</h3>
+            <button class="modal-close-btn" onclick="closeDoctorModal()">✕</button>
+        </div>
+        <form id="doctor-form" class="modal-form" onsubmit="saveDoctorForm(event)">
+            <div class="form-row-2">
+                <div class="form-group"><label>Doctor Name *</label><input type="text" id="doctor-name" required placeholder="Dr. Full Name"></div>
+                <div class="form-group">
+                    <label>Specialization *</label>
+                    <select id="doctor-specialization" required>
+                        <option value="">Select...</option>
+                        <option>Cardiologist</option><option>Pediatrician</option><option>Dermatologist</option>
+                        <option>Orthopedic</option><option>Neurologist</option><option>General Physician</option>
+                        <option>Oncologist</option><option>Family Medicine</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row-2">
+                <div class="form-group">
+                    <label>Gender *</label>
+                    <select id="doctor-gender" required>
+                        <option value="">Select...</option>
+                        <option>Male</option><option>Female</option><option>Other</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Experience *</label><input type="text" id="doctor-experience" required placeholder="e.g. 10 years"></div>
+            </div>
+            <div class="form-row-2">
+                <div class="form-group"><label>Phone *</label><input type="tel" id="doctor-phone" required placeholder="+1 234 567 8900"></div>
+                <div class="form-group"><label>Email *</label><input type="email" id="doctor-email" required placeholder="dr@hospital.com"></div>
+            </div>
+            <div class="form-row-2">
+                <div class="form-group"><label>Distance</label><input type="text" id="doctor-distance" placeholder="0.5 km"></div>
+                <div class="form-group"><label>Rating</label><input type="number" id="doctor-rating" min="0" max="5" step="0.1" placeholder="4.5"></div>
+            </div>
+            <div class="form-group"><label>Profile Image URL</label><input type="url" id="doctor-image" placeholder="https://..."></div>
+            <div class="form-group">
+                <label class="checkbox-label-wrap"><input type="checkbox" id="doctor-available" checked><span>Currently Available</span></label>
+            </div>
+            <input type="hidden" id="doctor-id">
+            <input type="hidden" id="is-editing">
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel-modal" onclick="closeDoctorModal()">Cancel</button>
+                <button type="submit" class="btn-save-modal">Save Doctor</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========== EDIT SLOT MODAL ========== -->
+<div id="edit-slot-modal" class="modal-overlay" style="display:none">
+    <div class="modal-card" style="max-width:360px">
+        <div class="modal-header">
+            <h3>✏️ Edit Time Slot</h3>
+            <button class="modal-close-btn" onclick="closeEditSlotModal()">✕</button>
+        </div>
+        <div class="modal-form" style="padding:16px">
+            <div class="form-group"><label>Date</label><input type="date" id="edit-slot-date"></div>
+            <div class="form-group"><label>Time</label><input type="time" id="edit-slot-time"></div>
+            <div class="form-group"><label>Max Patients</label><input type="number" id="edit-slot-max" min="1" max="50"></div>
+            <input type="hidden" id="edit-slot-id">
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel-modal" onclick="closeEditSlotModal()">Cancel</button>
+                <button type="button" class="btn-save-modal" onclick="saveEditSlot()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== BOOKING MODAL ========== -->
+<div id="booking-modal" class="modal-overlay" style="display:none">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3>📅 Book Appointment</h3>
+            <button class="modal-close-btn" onclick="closeBookingModal()">✕</button>
+        </div>
+        <div class="booking-modal-wrap">
+            <div class="booking-doctor-preview" id="booking-doctor-preview"></div>
+            <div id="booking-dup-warning" style="display:none;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:10px 14px;font-size:.82rem;color:#92400e;margin-bottom:4px;font-weight:600;"></div>
+            <div><div class="booking-section-label">Select Date</div><div class="booking-date-grid" id="booking-date-grid"></div></div>
+            <div><div class="booking-section-label">Select Time Slot</div><div class="booking-time-grid" id="booking-time-grid"></div></div>
+            <div><div class="booking-section-label">Reason for Visit (optional)</div><textarea class="booking-reason-input" id="booking-reason" placeholder="e.g. Regular check-up, follow-up..."></textarea></div>
+            <div id="booking-patient-fields">
+                <div class="booking-section-label">Your Details</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div class="form-group"><label>Full Name</label><input type="text" id="booking-patient-name" placeholder="Your name"></div>
+                    <div class="form-group"><label>Phone</label><input type="tel" id="booking-patient-phone" placeholder="+1 234 567 8900"></div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding-top:0">
+                <button type="button" class="btn-cancel-modal" onclick="closeBookingModal()">Cancel</button>
+                <button type="button" class="btn-confirm-booking" id="confirm-booking-btn" onclick="confirmBooking()" disabled>Confirm Booking</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== DELETE DOCTOR MODAL ========== -->
+<div id="delete-modal" class="modal-overlay" style="display:none">
+    <div class="modal-card modal-sm">
+        <div class="modal-header">
+            <h3>Confirm Delete</h3>
+            <button class="modal-close-btn" onclick="closeDeleteModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <p>Delete <strong id="delete-doctor-name"></strong>?</p>
+            <p style="color:#EF4444;font-size:.85rem;margin-top:8px">This cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel-modal" onclick="closeDeleteModal()">Cancel</button>
+            <button class="btn-delete-modal" onclick="confirmDeleteDoctor()">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast" style="display:none"></div>
+
+<script src="main.js"></script>
+<!-- Booking Confirmation Modal -->
+<div id="booking-confirm-modal" class="modal-overlay" style="display:none;z-index:9998">
+  <div class="modal-card modal-sm" style="max-width:400px;padding:0;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#0ea5e9,#0284c7);padding:24px;text-align:center;color:#fff">
+      <div style="font-size:2.5rem;margin-bottom:8px">✅</div>
+      <h3 style="font-size:1.1rem;font-weight:800;margin:0">Appointment Confirmed!</h3>
+      <p style="font-size:.82rem;opacity:.85;margin:4px 0 0">Your booking has been successfully placed</p>
+    </div>
+    <div style="padding:20px 24px">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span style="font-size:1.2rem">👨‍⚕️</span>
+          <div><div style="font-size:.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">Doctor</div>
+          <div style="font-weight:700;color:#0f172a" id="bc-doctor"></div>
+          <div style="font-size:.78rem;color:#64748b" id="bc-spec"></div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span style="font-size:1.2rem">🏥</span>
+          <div><div style="font-size:.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">Hospital</div>
+          <div style="font-weight:600;color:#0f172a" id="bc-hosp"></div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span style="font-size:1.2rem">📅</span>
+          <div><div style="font-size:.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">Date & Time</div>
+          <div style="font-weight:600;color:#0f172a" id="bc-date"></div>
+          <div style="font-size:.82rem;color:#0ea5e9;font-weight:700" id="bc-time"></div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span style="font-size:1.2rem">👤</span>
+          <div><div style="font-size:.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">Patient</div>
+          <div style="font-weight:600;color:#0f172a" id="bc-name"></div>
+          <div style="font-size:.78rem;color:#64748b" id="bc-phone"></div></div>
+        </div>
+      </div>
+      <button onclick="closeBookingConfirm()" style="margin-top:20px;width:100%;padding:12px;background:#0ea5e9;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:.95rem;cursor:pointer">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Styled Confirm Dialog -->
+<div id="confirm-dialog" class="modal-overlay" style="display:none;z-index:9999">
+  <div class="modal-card modal-sm" style="max-width:380px;padding:28px 28px 24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      <span id="confirm-dialog-icon" style="font-size:1.6rem">⚠️</span>
+      <h3 id="confirm-dialog-title" style="font-size:1rem;font-weight:800;color:var(--dark)"></h3>
+    </div>
+    <p id="confirm-dialog-msg" style="font-size:.88rem;color:var(--gray-500);margin-bottom:22px;line-height:1.5"></p>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="confirmDialogResolve(false)" style="padding:9px 20px;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;color:var(--gray-600);font-weight:600;cursor:pointer;font-size:.88rem">Keep it</button>
+      <button id="confirm-dialog-ok" onclick="confirmDialogResolve(true)" style="padding:9px 20px;border-radius:10px;border:none;font-weight:700;cursor:pointer;font-size:.88rem"></button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
