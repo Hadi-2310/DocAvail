@@ -1241,3 +1241,600 @@ input:checked + .slider:before { transform: translateX(20px); }
     cursor: pointer;
     font-weight: 600;
 }
+
+/* ============================================================
+   MOBILE FIXES — Smartphone Perfect (375px+)
+   Fixes: overflow, off-screen elements, tiny tap targets,
+   broken layouts, header wrapping, modal sizing, forms
+   ============================================================ */
+
+/* ── Base: prevent ALL horizontal overflow ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* ── Auth container: fix padding on small phones ── */
+@media (max-width: 480px) {
+  .auth-container {
+    padding: 24px 18px 32px;
+    max-width: 100%;
+  }
+  .auth-container h2 { font-size: 1.4rem; }
+}
+
+/* ── Welcome screen: prevent overflow on tiny screens ── */
+@media (max-width: 480px) {
+  #welcome-screen { padding: 24px 16px 32px; }
+  .welcome-header h1 { font-size: 1.8rem; }
+  .welcome-card { padding: 14px 16px; gap: 12px; }
+  .wcard-icon { font-size: 1.6rem; flex-shrink: 0; }
+  .welcome-features { gap: 6px; }
+  .feat { padding: 5px 10px; font-size: .75rem; }
+}
+
+/* ── Home header: stop badge + logout from going off screen ── */
+.home-header {
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px;
+}
+.header-left {
+  flex: 1;
+  min-width: 0;
+}
+.header-left h1 {
+  font-size: 1.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.header-left p {
+  font-size: .78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+@media (max-width: 400px) {
+  .header-actions { flex-direction: row; gap: 6px; }
+  .welcome-badge { font-size: .72rem; padding: 5px 9px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn-logout { font-size: .72rem; padding: 6px 10px; }
+}
+
+/* ── Search + filter row: stay on one line, never overflow ── */
+.search-filter-row {
+  display: flex;
+  gap: 8px;
+  padding: 12px 12px 12px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.search-box {
+  flex: 1;
+  min-width: 0;   /* critical — lets flex shrink below content width */
+  padding: 0 12px;
+  min-height: 44px;
+}
+.search-box input {
+  width: 100%;
+  min-width: 0;
+  font-size: .88rem;
+}
+.btn-filter {
+  flex-shrink: 0;
+  padding: 0 14px;
+  height: 44px;
+  font-size: .82rem;
+  gap: 5px;
+}
+@media (max-width: 360px) {
+  .btn-filter span { display: none; }  /* hide "Filters" text, keep icon only */
+}
+
+/* ── Emergency bar: stack on very small screens ── */
+.emergency-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  flex-wrap: nowrap;
+}
+.btn-emergency {
+  flex: 1;
+  min-width: 0;
+  font-size: .8rem;
+  padding: 10px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.btn-voice-mini {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  font-size: .78rem;
+  gap: 5px;
+}
+@media (max-width: 360px) {
+  .btn-emergency { font-size: .75rem; padding: 9px 8px; }
+}
+
+/* ── List tabs: equal width, no overflow ── */
+.list-tabs {
+  display: flex;
+  padding: 0 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.list-tabs::-webkit-scrollbar { display: none; }
+.list-tab {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 6px;
+  font-size: .8rem;
+  white-space: nowrap;
+}
+
+/* ── Entity cards: prevent icon + text from overflowing ── */
+.hospital-card, .clinic-card {
+  padding: 14px 12px;
+  gap: 12px;
+  overflow: hidden;
+}
+.hospital-info, .clinic-info {
+  flex: 1;
+  min-width: 0;   /* critical */
+  overflow: hidden;
+}
+.hospital-info h3, .clinic-info h3 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.entity-meta {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.entity-meta-item {
+  font-size: .75rem;
+}
+.entity-arrow {
+  flex-shrink: 0;
+}
+
+/* ── Doctors grid: 2-col on phones, 1-col on tiny phones ── */
+@media (max-width: 360px) {
+  .doctors-grid { grid-template-columns: 1fr; padding: 8px 12px 16px; }
+}
+@media (min-width: 361px) and (max-width: 599px) {
+  .doctors-grid { grid-template-columns: 1fr 1fr; padding: 8px 12px 16px; }
+}
+.doctor-card {
+  padding: 12px 10px;
+  overflow: hidden;
+}
+.doctor-info h3 {
+  font-size: .82rem;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ── Filter panel: full width, no margin overflow ── */
+.filter-panel {
+  margin: 0 12px 12px;
+  padding: 16px;
+}
+.filter-chip-group {
+  gap: 6px;
+}
+.filter-chip {
+  padding: 6px 12px;
+  font-size: .78rem;
+}
+.filter-sort-btn {
+  min-width: 0;
+  flex: 1;
+  font-size: .78rem;
+  padding: 9px 6px;
+}
+.filter-range-btn {
+  min-width: 0;
+  font-size: .78rem;
+  padding: 9px 6px;
+}
+
+/* ── Global search results: no overflow ── */
+.global-results-panel { margin: 0 12px 12px; }
+.global-results-header {
+  padding: 10px 12px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.global-entity-filter { flex-wrap: wrap; gap: 5px; }
+.entity-btn {
+  padding: 4px 10px;
+  font-size: .75rem;
+}
+
+/* ── Specialist search bar ── */
+.specialist-search-bar {
+  margin: 12px 12px;
+  height: 48px;
+}
+.specialist-filter-row { padding: 0 12px 10px; }
+.specialist-results-list { padding: 0 12px; }
+.results-count-bar { padding: 4px 12px 8px; }
+
+/* ── Spec result cards: no overflow ── */
+.spec-result-card {
+  padding: 12px;
+  gap: 10px;
+  overflow: hidden;
+}
+.spec-result-info {
+  min-width: 0;
+  overflow: hidden;
+}
+.spec-result-info h4 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.spec-result-entity {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Dashboard header ── */
+.dash-header-bar {
+  padding: 16px 14px;
+  gap: 10px;
+}
+.dash-header-title h2 {
+  font-size: 1.05rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Stats row: equal pills, no overflow ── */
+.stats-row {
+  padding: 12px 12px 8px;
+  gap: 8px;
+}
+.stat-pill {
+  padding: 12px 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+.stat-num {
+  font-size: 1.6rem;
+  word-break: break-all;
+}
+.stat-lbl {
+  font-size: .7rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+/* ── Dashboard tabs: scrollable row ── */
+.dash-tabs {
+  margin: 10px 12px;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.dash-tabs::-webkit-scrollbar { display: none; }
+.dash-tab {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  font-size: .82rem;
+}
+
+/* ── Slot form: stack on mobile ── */
+@media (max-width: 480px) {
+  .slot-form-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .add-slot-form {
+    margin: 10px 12px;
+    padding: 14px 12px;
+  }
+}
+.add-slot-form {
+  margin: 10px 12px;
+}
+
+/* ── Slot manage rows: wrap on small phones ── */
+.slot-manage-row {
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+}
+.slot-manage-row .slot-info { min-width: 0; flex: 1; }
+
+/* ── Booking rows in dashboard ── */
+.booking-row {
+  overflow: hidden;
+}
+.booking-row .booking-header {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ── Dashboard doctor list ── */
+.dashboard-list { padding: 0 12px; }
+.dashboard-actions { padding: 0 12px 10px; }
+.dashboard-doctor-card {
+  overflow: hidden;
+  gap: 10px;
+  padding: 12px;
+}
+.dashboard-doctor-info {
+  min-width: 0;
+  overflow: hidden;
+}
+.dashboard-doctor-info h3 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: .88rem;
+}
+.dashboard-doctor-actions {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ── Modal: full screen bottom sheet on mobile ── */
+.modal-overlay {
+  padding: 0;
+  align-items: flex-end;
+}
+.modal-card {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 20px 20px 0 0;
+  max-height: 92vh;
+  padding: 20px 16px 28px;  /* extra bottom padding for home bar */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@media (min-width: 600px) {
+  .modal-overlay { align-items: center; padding: 20px; }
+  .modal-card { border-radius: 20px; max-width: 600px; max-height: 88vh; padding: 24px; }
+}
+
+/* ── Form 2-col: stack on phones ── */
+@media (max-width: 560px) {
+  .form-row-2 { grid-template-columns: 1fr; gap: 10px; }
+}
+
+/* ── Booking modal: date grid fix (7-col overflows on phones) ── */
+.booking-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+@media (max-width: 400px) {
+  .booking-date-grid { gap: 3px; }
+  .booking-date-btn { padding: 6px 2px; border-radius: 8px; }
+  .booking-date-btn .day-num { font-size: .88rem; }
+  .booking-date-btn .day-name { font-size: .58rem; }
+}
+
+/* ── Booking time grid: 3-col on phones ── */
+@media (max-width: 480px) {
+  .booking-time-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .booking-time-btn { padding: 9px 4px; font-size: .78rem; }
+}
+
+/* ── Booking patient fields: stack on phones ── */
+@media (max-width: 480px) {
+  #booking-patient-fields > div[style*="grid"] {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+}
+
+/* ── My bookings cards ── */
+.booking-card {
+  overflow: hidden;
+  gap: 10px;
+}
+.booking-card-info {
+  min-width: 0;
+  overflow: hidden;
+}
+.booking-card-info h4 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 400px) {
+  .booking-card {
+    flex-direction: column;
+    padding: 12px;
+  }
+  .booking-card-date {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    border-radius: 8px;
+    padding: 6px 12px;
+  }
+}
+
+/* ── Doctor detail page ── */
+@media (max-width: 480px) {
+  .detail-card { margin: 12px; padding: 16px; }
+  .detail-grid { grid-template-columns: 1fr; gap: 12px; }
+  .detail-doctor-top { gap: 12px; }
+  .detail-doc-img { width: 64px; height: 64px; }
+  .detail-doc-name { font-size: 1rem; }
+}
+
+/* ── Booking confirm modal: fix inner grid overflow ── */
+#booking-confirm-modal .modal-card {
+  border-radius: 20px 20px 0 0;
+  max-width: 100%;
+}
+@media (min-width: 600px) {
+  #booking-confirm-modal .modal-card { border-radius: 20px; max-width: 420px; }
+}
+
+/* ── Clinic dashboard ── */
+.clinic-profile-card { margin: 12px; padding: 16px; }
+.clinic-avail-toggle-wrap { margin: 0 12px 12px; padding: 14px; }
+@media (max-width: 400px) {
+  .clinic-profile-top { flex-direction: column; align-items: flex-start; }
+}
+
+/* ── Voice screen suggestions ── */
+@media (max-width: 480px) {
+  .voice-body { padding: 16px 12px; }
+  .sugg-btn { font-size: .74rem; padding: 6px 10px; }
+  .voice-transcript-box,
+  .voice-response-box { padding: 12px 14px; }
+  .voice-result-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+}
+
+/* ── Specialty filter scroll ── */
+.specialty-filter-scroll {
+  padding: 10px 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Empty state ── */
+.empty-state { padding: 40px 16px; }
+
+/* ── Toast: full width on phone, safe area ── */
+@media (max-width: 480px) {
+  .toast {
+    left: 12px;
+    right: 12px;
+    bottom: 16px;
+    transform: none;
+    width: auto;
+    min-width: unset;
+    font-size: .85rem;
+  }
+}
+
+/* ── Emergency inline panel: full screen, no overflow ── */
+.emergency-inline-panel {
+  overflow-x: hidden;
+}
+.emp-body {
+  padding: 12px 14px 20px;
+  overflow-x: hidden;
+}
+.emp-banner {
+  padding: 14px 14px;
+}
+.emp-btn-row {
+  flex-wrap: nowrap;
+}
+.emp-call-btn, .emp-map-btn {
+  min-width: 0;
+  font-size: .78rem;
+  padding: 8px 10px;
+}
+@media (max-width: 360px) {
+  .emp-banner-title { font-size: .88rem; }
+  .emp-card { padding: 11px 12px; }
+  .emp-hotlines button { font-size: .8rem; padding: 8px 6px; }
+}
+
+/* ── Fix: global search input min-width causing overflow ── */
+#global-search-input {
+  min-width: 0;
+  width: 100%;
+}
+
+/* ── Fix: welcome badge overflow in header ── */
+#patient-greeting-badge {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Fix: spec entity row wrapping out of view ── */
+.spec-entity-row {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ── Fix: hospital dashboard bookings panel ── */
+#dash-bookings-panel > div:first-child {
+  padding: 10px 12px 0;
+}
+#bookings-list {
+  padding: 0 12px 16px;
+}
+
+/* ── Fix: slots list padding ── */
+#slots-list { padding: 0 12px; }
+
+/* ── Safe area insets (iPhone notch/home bar) ── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .modal-card {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+  .emergency-inline-panel {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .home-wrap {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+  .toast {
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+}
+
+/* ── Override desktop padding for mobile ── */
+@media (max-width: 899px) {
+  .entity-list { padding: 10px 12px; gap: 10px; }
+  .search-box { margin: 0; }
+  .specialist-results-list { padding: 0 12px; }
+  .specialist-search-bar { margin: 12px 12px; }
+  .specialist-filter-row { padding: 0 12px 10px; }
+  .results-count-bar { padding: 4px 12px 6px; }
+  .detail-card { margin: 12px; }
+  .specialty-filter-scroll { padding: 10px 12px; }
+  .doctors-grid { padding: 8px 12px 16px; }
+  .global-results-panel { margin: 0 12px 10px; }
+  .filter-panel { margin: 0 12px 12px; }
+}
+
+
+/* ── Booking patient grid: 2-col desktop, 1-col mobile ── */
+.booking-patient-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 480px) {
+  .booking-patient-grid { grid-template-columns: 1fr; gap: 8px; }
+}

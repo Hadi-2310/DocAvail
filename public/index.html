@@ -19,6 +19,7 @@
     .add-slot-form { background:#f0f9ff; border-radius:14px; padding:14px 16px; margin-bottom:14px; }
     .add-slot-form h4 { margin:0 0 10px; color:#0369a1; font-size:.9rem; }
     .slot-form-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px; }
+    @media(max-width:480px){ .slot-form-row { grid-template-columns:1fr; } }
     .slot-form-row input, .slot-form-row select { padding:7px 9px; border:1.5px solid #bae6fd; border-radius:8px; font-size:.82rem; }
     .btn-add-slot { background:#0ea5e9; color:#fff; border:none; border-radius:8px; padding:8px 18px; cursor:pointer; font-weight:600; font-size:.85rem; }
     /* Edit slot modal */
@@ -789,7 +790,7 @@
             <div><div class="booking-section-label">Reason for Visit (optional)</div><textarea class="booking-reason-input" id="booking-reason" placeholder="e.g. Regular check-up, follow-up..."></textarea></div>
             <div id="booking-patient-fields">
                 <div class="booking-section-label">Your Details</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div class="booking-patient-grid">
                     <div class="form-group"><label>Full Name</label><input type="text" id="booking-patient-name" placeholder="Your name"></div>
                     <div class="form-group"><label>Phone</label><input type="tel" id="booking-patient-phone" placeholder="+1 234 567 8900"></div>
                 </div>
