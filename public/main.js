@@ -871,21 +871,26 @@ async function processVoiceQuery(transcript) {
     const words = str => str.toLowerCase().replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(w => w.length >= 3 && !STOP.has(w));
     const spokenWords = words(lower);
 
-    // Score: how many meaningful name-words appear in what the user said
-    // FIX: was checking wrong direction — now correctly checks if spoken words match the name
+    // Score: count how many meaningful name-words appear in what the user said
     let bestHospScore = 0, bestClinicScore = 0;
     for (const h of (hospitals || [])) {
         const nameWords = words(h.name);
-        const score = nameWords.filter(w => spokenWords.includes(w) || lower.includes(w)).length;
-        if (score > 0 && score >= Math.max(1, nameWords.length - 1) && score > bestHospScore) {
+        if (!nameWords.length) continue;
+        // Check each name word appears in what was spoken
+        const score = nameWords.filter(w => lower.includes(w)).length;
+        // Must match majority of meaningful name words to avoid false positives
+        const threshold = Math.ceil(nameWords.length * 0.6);
+        if (score >= threshold && score > bestHospScore) {
             bestHospScore = score;
             hospitalMatch = h;
         }
     }
     for (const cl of (clinics || [])) {
         const nameWords = words(cl.name + ' ' + (cl.doctorName||''));
-        const score = nameWords.filter(w => spokenWords.includes(w) || lower.includes(w)).length;
-        if (score > 0 && score >= Math.max(1, nameWords.length - 1) && score > bestClinicScore) {
+        if (!nameWords.length) continue;
+        const score = nameWords.filter(w => lower.includes(w)).length;
+        const threshold = Math.ceil(nameWords.length * 0.6);
+        if (score >= threshold && score > bestClinicScore) {
             bestClinicScore = score;
             clinicMatch = cl;
         }
@@ -905,7 +910,7 @@ async function processVoiceQuery(transcript) {
         respEl.innerHTML = `🏥 Found <strong>${hospitalMatch.name}</strong> — opening doctors list...`;
         document.getElementById('voice-status').textContent = 'Navigating...';
         // FIX: reduced delay 800ms → 300ms
-        setTimeout(() => navigateToScreen('doctors-list-screen', hospitalMatch.hospitalId), 300);
+        setTimeout(() => navigateToScreen('doctors-list-screen', hospitalMatch.id || hospitalMatch.hospitalId), 300);
         document.getElementById('voice-results').style.display = 'none';
         return;
     }
