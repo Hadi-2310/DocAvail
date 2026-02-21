@@ -624,6 +624,9 @@ async function handleGeoEmergency() {
     const btn     = document.querySelector('.btn-emergency');
     panel.classList.add('visible');
     if (btn) btn.classList.add('active');
+    // Scroll emergency panel to top
+    panel.scrollTop = 0;
+    document.body.style.overflow = 'hidden';
     locBar.className='emp-loc-bar locating'; locBar.textContent='📡 Requesting your GPS location...';
     results.innerHTML   = '<div style="text-align:center;padding:14px;opacity:.8;font-size:.85rem;">Searching nearby hospitals...</div>';
     // Scroll panel into view
@@ -724,13 +727,14 @@ function _renderEmergencyResults(data, userLat, userLng) {
       </div>`;
 
     if (userLat && userLng) {
-        html += `<div class="emp-my-loc">📍 Your location: ${userLat.toFixed(5)}, ${userLng.toFixed(5)}</div>`;
+        html += `<div class="emp-my-loc" style="display:none">📍 Your location: ${userLat.toFixed(5)}, ${userLng.toFixed(5)}</div>`;
     }
 
     c.innerHTML = html || '<div style="text-align:center;padding:20px;color:#9ca3af;">No emergency data found. Call 112 immediately.</div>';
 }
 function closeEmergencyPanel() {
     document.getElementById('emergency-inline-panel').classList.remove('visible');
+    document.body.style.overflow = '';
     const btn = document.querySelector('.btn-emergency');
     if (btn) btn.classList.remove('active');
 }

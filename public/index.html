@@ -47,18 +47,18 @@
         50%      { box-shadow: 0 0 0 8px rgba(220,38,38,0); }
     }
 
-    /* Panel sits below gradient header, white bg like other cards */
+    /* Full screen emergency overlay */
     .emergency-inline-panel {
         display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        z-index: 9999;
         background: #fff;
-        border-radius: 0 0 24px 24px;
-        margin: 0 0 0 0;
-        border-top: 3px solid #dc2626;
-        box-shadow: 0 8px 32px rgba(220,38,38,.12), 0 2px 8px rgba(0,0,0,.06);
-        overflow: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
         animation: empSlideIn .25s cubic-bezier(.4,0,.2,1);
     }
-    .emergency-inline-panel.visible { display: block; }
+    .emergency-inline-panel.visible { display: flex; flex-direction: column; }
 
     /* Coloured banner at top of panel */
     .emp-banner {
@@ -83,7 +83,7 @@
     .emp-close:hover { background: rgba(255,255,255,.35); }
 
     /* Body of the panel — white, like the rest of the app */
-    .emp-body { padding: 14px 16px 18px; }
+    .emp-body { padding: 14px 16px 18px; flex: 1; overflow-y: auto; }
 
     /* Location bar — subtle, matches search-box style */
     .emp-loc-bar {
