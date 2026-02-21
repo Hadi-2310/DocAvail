@@ -514,15 +514,25 @@ async function renderDoctorsList() {
     if (!doctors.length) { c.innerHTML='<div class="loading-pulse" style="grid-column:1/-1">No doctors match your search</div>'; return; }
     // Fetch today's slots for all doctors at once to show slot counts on cards
     const today = todayStr();
+    const now = new Date();
     let slotMap = {};
     try {
         const hId = STATE.selectedHospitalId;
         const slots = await apiFetch('/slots/hospital/' + hId);
-        slots.filter(s => s.date === today && s.isActive).forEach(s => {
-            if (!slotMap[s.doctorId]) slotMap[s.doctorId] = { total: 0, filled: 0 };
-            slotMap[s.doctorId].total += s.maxBookings;
-            slotMap[s.doctorId].filled += s.currentBookings;
-        });
+        slots
+            .filter(s => {
+                if (s.date !== today || !s.isActive) return false;
+                // ── KEY FIX: exclude slots where time has already passed ──
+                const [y, mo, day] = s.date.split('-').map(Number);
+                const [h, min] = s.time.split(':').map(Number);
+                const slotTime = new Date(y, mo - 1, day, h, min, 0);
+                return slotTime > now;
+            })
+            .forEach(s => {
+                if (!slotMap[s.doctorId]) slotMap[s.doctorId] = { total: 0, filled: 0 };
+                slotMap[s.doctorId].total += s.maxBookings;
+                slotMap[s.doctorId].filled += s.currentBookings;
+            });
     } catch(e) {}
 
     c.innerHTML=doctors.map(d=>{
