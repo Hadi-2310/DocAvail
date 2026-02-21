@@ -1120,6 +1120,18 @@ async function saveEditSlot() {
 }
 
 // ─── BOOKINGS DASHBOARD ───────────────────────────────────
+// Helper: returns 'completed' if confirmed but appointment time has passed
+function getBookingDisplayStatus(b) {
+    const status = b.status || 'confirmed';
+    if (status === 'cancelled') return 'cancelled';
+    if (status === 'confirmed') {
+        const [sh, sm] = (b.time || '00:00').split(':').map(Number);
+        const [sy, smo, sdy] = (b.date || '2000-01-01').split('-').map(Number);
+        const apptDt = new Date(sy, smo - 1, sdy, sh, sm, 0, 0);
+        if (apptDt < new Date()) return 'completed';
+    }
+    return status;
+}
 async function renderDashBookings() {
     const hId=STATE.currentHospitalId;
     const bookings=await fetchBookingsForHospital(hId);
@@ -1128,13 +1140,17 @@ async function renderDashBookings() {
     document.getElementById('total-bookings-stat').textContent=active.length;
     if(!bookings.length){listEl.innerHTML='<p style="color:#94a3b8;text-align:center;padding:20px;">No bookings yet.</p>';return;}
     listEl.innerHTML=bookings.map(b=>{
-      const isCancelled = b.status === 'cancelled';
+      const displayStatus = getBookingDisplayStatus(b);
+      const isCancelled = displayStatus === 'cancelled';
+      const isCompleted = displayStatus === 'completed';
+      const dimmed = isCancelled || isCompleted;
+      const statusLabel = displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1);
       return `
-      <div class="booking-row" style="${isCancelled ? 'opacity:0.6' : ''}">
+      <div class="booking-row" style="${dimmed ? 'opacity:0.65' : ''}">
         <div class="booking-header">
           <span class="booking-id">#${b.bookingId}</span>
           <span class="booking-datetime">${b.date} at ${fmtTime12(b.time)}</span>
-          <span class="booking-status-badge ${b.status||'confirmed'}" style="font-size:.7rem;padding:2px 8px">${(b.status||'confirmed').charAt(0).toUpperCase()+(b.status||'confirmed').slice(1)}</span>
+          <span class="booking-status-badge ${displayStatus}" style="font-size:.7rem;padding:2px 8px">${statusLabel}</span>
         </div>
         <div class="booking-patient" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${b.patientName}${b.patientAge?`<span style="font-size:.78rem;color:#64748b">(Age: ${b.patientAge})</span>`:''}
@@ -1143,7 +1159,7 @@ async function renderDashBookings() {
         <div class="booking-details">📞 ${b.patientContact||'—'}</div>
         <div class="booking-details">👨‍⚕️ ${b.doctorName}</div>
         ${b.patientDescription?`<div class="booking-details" style="font-style:italic">📝 ${b.patientDescription}</div>`:''}
-        ${!isCancelled ? `<div style="display:flex;justify-content:flex-end;margin-top:8px">
+        ${!isCancelled && !isCompleted ? `<div style="display:flex;justify-content:flex-end;margin-top:8px">
           <button class="btn-cancel-booking" onclick="cancelServerBooking('${b._id}')">Cancel</button>
         </div>` : ''}
       </div>`;
@@ -1724,13 +1740,17 @@ async function renderBookingsForClinic(clinicId) {
     if (countEl) countEl.textContent = active.length;
     if (!bookings.length) { listEl.innerHTML = '<div class="no-bookings-msg">No bookings yet</div>'; return; }
     listEl.innerHTML = bookings.map(b => {
-      const isCancelled = b.status === 'cancelled';
+      const displayStatus = getBookingDisplayStatus(b);
+      const isCancelled = displayStatus === 'cancelled';
+      const isCompleted = displayStatus === 'completed';
+      const dimmed = isCancelled || isCompleted;
+      const statusLabel = displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1);
       return `
-      <div class="booking-row" style="${isCancelled ? 'opacity:0.6' : ''}">
+      <div class="booking-row" style="${dimmed ? 'opacity:0.65' : ''}">
         <div class="booking-header">
           <span class="booking-id">#${b.bookingId}</span>
           <span class="booking-datetime">${b.date} at ${fmtTime12(b.time)}</span>
-          <span class="booking-status-badge ${b.status||'confirmed'}" style="font-size:.7rem;padding:2px 8px">${(b.status||'confirmed').charAt(0).toUpperCase()+(b.status||'confirmed').slice(1)}</span>
+          <span class="booking-status-badge ${displayStatus}" style="font-size:.7rem;padding:2px 8px">${statusLabel}</span>
         </div>
         <div class="booking-patient" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${b.patientName}
@@ -1738,7 +1758,7 @@ async function renderBookingsForClinic(clinicId) {
         </div>
         <div class="booking-details">📞 ${b.patientContact||'—'}</div>
         ${b.patientDescription?`<div class="booking-details" style="font-style:italic">📝 ${b.patientDescription}</div>`:''}
-        ${!isCancelled ? `<div style="display:flex;justify-content:flex-end;margin-top:8px">
+        ${!isCancelled && !isCompleted ? `<div style="display:flex;justify-content:flex-end;margin-top:8px">
           <button class="btn-cancel-booking" onclick="cancelServerBooking('${b._id}')">Cancel</button>
         </div>` : ''}
       </div>`;
@@ -1760,6 +1780,9 @@ function renderBookingCard(b, context='patient') {
     const [sy, smo, sdy] = (b.date || '2000-01-01').split('-').map(Number);
     const apptDatetime = new Date(sy, smo - 1, sdy, sh, sm, 0, 0);
     const isPast = apptDatetime < new Date();
+    // Use display status: shows 'completed' for past confirmed bookings
+    const displayStatus = getBookingDisplayStatus(b);
+    const isCompleted = displayStatus === 'completed';
     const showRemove = status === 'cancelled' || isPast;
     const now2 = new Date();
     const todayMid = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate());
@@ -1771,7 +1794,7 @@ function renderBookingCard(b, context='patient') {
         else if (diffDays === 1) urgencyBadge = `<span class="appt-urgency-badge tomorrow">Tomorrow</span>`;
         else if (diffDays <= 3) urgencyBadge = `<span class="appt-urgency-badge soon">In ${diffDays} days</span>`;
     }
-    return `<div class="booking-card" id="bcard-${sid||lid}">
+    return `<div class="booking-card ${isCompleted ? 'booking-card-completed' : ''}" id="bcard-${sid||lid}">
       <div class="booking-card-date">
         <span class="bk-month">${months[d.getMonth()]}</span>
         <span class="bk-day">${d.getDate()}</span>
@@ -1786,11 +1809,11 @@ function renderBookingCard(b, context='patient') {
         <p style="font-size:.72rem;color:var(--gray-400)">Booked: ${fmtDateTime(b.createdAt)}</p>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
-        <span class="booking-status-badge ${status}">${status.charAt(0).toUpperCase()+status.slice(1)}</span>
+        <span class="booking-status-badge ${displayStatus}">${displayStatus.charAt(0).toUpperCase()+displayStatus.slice(1)}</span>
         ${status !== 'cancelled' && !isPast && sid
             ? `<button class="booking-reschedule-btn" onclick="openRescheduleModal('${sid}')">🔄 Reschedule</button>`
             : ''}
-        ${status !== 'cancelled'
+        ${status !== 'cancelled' && !isCompleted
             ? `<button class="booking-cancel-btn" onclick="${cancelFn}">Cancel</button>`
             : ''}
         ${showRemove

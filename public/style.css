@@ -954,6 +954,11 @@ input:checked + .slider:before { transform: translateX(20px); }
 .booking-status-badge.confirmed { background: #D1FAE5; color: var(--green-600); }
 .booking-status-badge.pending { background: #FEF3C7; color: #92400E; }
 .booking-status-badge.cancelled { background: #FEE2E2; color: var(--red-600); }
+.booking-status-badge.completed { background: #E0E7FF; color: #4338CA; }
+/* Completed booking card — subtle greyed out with left accent */
+.booking-card-completed { opacity: 0.72; border-left: 3px solid #818CF8 !important; }
+.booking-card-completed .bk-day { color: #94a3b8; }
+.booking-card-completed .bk-month { color: #94a3b8; }
 .booking-cancel-btn {
   background: #FEE2E2; color: var(--red-600); border: none; border-radius: 8px;
   padding: 5px 10px; font-size: .75rem; font-weight: 700; font-family: var(--font);
