@@ -1523,6 +1523,7 @@ async function renderTimeSlots() {
     // Fetch real slots from server for this doctor
     let dbSlots=[];
     try{ dbSlots=await apiFetch('/slots/doctor/'+docId); }catch(e){}
+    BSTATE._slotsCache = dbSlots; // cache for hospitalId lookup at booking time
 
     // Filter to the selected date and active/future only
     const now=new Date();
@@ -1616,7 +1617,15 @@ async function confirmBooking() {
             doctorId:   doctor.doctorId || doctor.id,
             // For clinics: store clinicId as doctorId (already is) and hospitalId as 0
             // The /bookings/clinic/:id route finds by doctorId == clinicId
-            hospitalId: isClinic ? 0 : (doctor.hospitalId || STATE.currentHospitalId || STATE.selectedHospitalId || 0),
+            // Resolve hospitalId with multiple fallbacks to ensure it's never 0 for hospital doctors
+            hospitalId: isClinic ? 0 : (
+                doctor.hospitalId ||
+                doctor.hospital_id ||
+                STATE.currentHospitalId ||
+                STATE.selectedHospitalId ||
+                // Last resort: look up from slots cache
+                (() => { try { const s = BSTATE._slotsCache?.find(sl => sl._id === BSTATE.selectedSlotId); return s?.hospitalId || 0; } catch(e) { return 0; } })()
+            ),
             slotId:     BSTATE.selectedSlotId
         };
 

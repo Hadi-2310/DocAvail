@@ -56,6 +56,28 @@ mongoose.connect(process.env.MONGODB_URI)
         }
     }
     console.log('✅ Index cleanup complete');
+
+    // FIX: ensure indexes exist for the most-queried fields
+    // These make all find/filter/sort operations dramatically faster
+    try {
+        await Promise.all([
+            Doctor.collection.createIndex({ hospitalId: 1 }),
+            Doctor.collection.createIndex({ available: -1 }),
+            Doctor.collection.createIndex({ specialization: 1 }),
+            Doctor.collection.createIndex({ hospitalId: 1, available: -1 }),
+            Doctor.collection.createIndex({ name: 'text', specialization: 'text', hospital: 'text' }),
+            TimeSlot.collection.createIndex({ doctorId: 1, isActive: 1, date: 1 }),
+            TimeSlot.collection.createIndex({ hospitalId: 1, date: 1 }),
+            TimeSlot.collection.createIndex({ date: 1, isActive: 1 }),
+            Booking.collection.createIndex({ hospitalId: 1, status: 1 }),
+            Booking.collection.createIndex({ patientId: 1 }),
+            Clinic.collection.createIndex({ available: -1 }),
+            Clinic.collection.createIndex({ specialization: 1 }),
+        ]);
+        console.log('✅ Performance indexes created');
+    } catch(e) {
+        console.log('ℹ️ Index creation skipped (may already exist):', e.message);
+    }
 })
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
@@ -72,23 +94,21 @@ function slotToDate(dateStr, timeStr) {
 async function cleanExpiredSlots() {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
+    const nowHHMM = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
 
-    // Mark all past-date slots inactive
-    await TimeSlot.updateMany(
-        { date: { $lt: today }, isActive: true },
-        { $set: { isActive: false } }
-    );
-
-    // For today's slots, check if time has already passed
-    const todaySlots = await TimeSlot.find({ date: today, isActive: true });
-    for (const slot of todaySlots) {
-        const slotDt = slotToDate(slot.date, slot.time);
-        if (now >= slotDt) {
-            slot.isActive = false;
-            slot.slotDateTime = slotDt;
-            await slot.save();
-        }
-    }
+    // FIX: two updateMany calls instead of find+loop+save per slot — far fewer DB round trips
+    await Promise.all([
+        // Past dates
+        TimeSlot.updateMany(
+            { date: { $lt: today }, isActive: true },
+            { $set: { isActive: false } }
+        ),
+        // Today's already-passed times
+        TimeSlot.updateMany(
+            { date: today, time: { $lte: nowHHMM }, isActive: true },
+            { $set: { isActive: false } }
+        )
+    ]);
 }
 
 // Run cleanup every minute for real-time accuracy
@@ -120,7 +140,7 @@ app.post('/api/patients/login', async (req, res) => {
         if (!patient) return res.status(404).json({ error: 'No account found with this email' });
         // Compare entered password with hashed password in DB
         const isMatch = await bcrypt.compare(password, patient.password);
-        if (!isMatch) return res.status(401).json({ error: 'Incorrect password. Forgot your password? Contact admin: support@docavail.com' });
+        if (!isMatch) return res.status(401).json({ error: 'Incorrect password. Forgot your password? Contact admin: docavail4@gmail.com' });
         res.json({ success: true, patient: { id: patient._id, name: patient.name, email: patient.email, phone: patient.phone, age: patient.age } });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -132,19 +152,36 @@ app.post('/api/patients/login', async (req, res) => {
 // ==============================
 app.get('/api/hospitals', async (req, res) => {
     try {
-        const hospitals = await Hospital.find().sort({ hospitalId: 1 });
-        const hospitalsWithStats = await Promise.all(hospitals.map(async (hospital) => {
-            const totalDoctors = await Doctor.countDocuments({ hospitalId: hospital.hospitalId });
-            const availableDoctors = await Doctor.countDocuments({ hospitalId: hospital.hospitalId, available: true });
+        // FIX: single aggregate replaces N*2 countDocuments calls (was 10+ DB queries for 5 hospitals)
+        const [hospitals, doctorStats] = await Promise.all([
+            Hospital.find().sort({ hospitalId: 1 }).lean(),
+            Doctor.aggregate([
+                { $group: {
+                    _id: '$hospitalId',
+                    total: { $sum: 1 },
+                    available: { $sum: { $cond: ['$available', 1, 0] } }
+                }}
+            ])
+        ]);
+        const statsMap = {};
+        for (const s of doctorStats) statsMap[s._id] = s;
+
+        const hospitalsWithStats = hospitals.map(h => {
+            const s = statsMap[h.hospitalId] || { total: 0, available: 0 };
             return {
-                id: hospital.hospitalId,
-                name: hospital.name,
-                location: hospital.location,
-                totalDoctors,
-                availableCount: availableDoctors,
-                availabilityPercent: totalDoctors > 0 ? Math.round((availableDoctors / totalDoctors) * 100) : 0
+                id: h.hospitalId,
+                hospitalId: h.hospitalId,
+                name: h.name,
+                location: h.location,
+                type: h.type,
+                coordinates: h.coordinates,
+                hasEmergency: h.hasEmergency,
+                rating: h.rating,
+                totalDoctors: s.total,
+                availableCount: s.available,
+                availabilityPercent: s.total > 0 ? Math.round((s.available / s.total) * 100) : 0
             };
-        }));
+        });
         hospitalsWithStats.sort((a, b) => b.availableCount - a.availableCount);
         res.json(hospitalsWithStats);
     } catch (error) {
@@ -290,18 +327,22 @@ app.delete('/api/doctors/:id', async (req, res) => {
 // GET slots for a doctor (patient-facing — only show future active slots)
 app.get('/api/slots/doctor/:doctorId', async (req, res) => {
     try {
-        await cleanExpiredSlots();
+        // FIX: don't block response on cleanup — run it in background
+        cleanExpiredSlots().catch(() => {});
         const doctorId = parseInt(req.params.doctorId);
         const now = new Date();
         const today = now.toISOString().split('T')[0];
+        const nowHHMM = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+        // FIX: filter in DB query itself — no need for JS-side filter loop
         const slots = await TimeSlot.find({
             doctorId,
-            date: { $gte: today },
-            isActive: true
-        }).sort({ date: 1, time: 1 });
-        // Extra real-time filter: exclude today's already-passed slots
-        const future = slots.filter(s => slotToDate(s.date, s.time) > now);
-        res.json(future);
+            isActive: true,
+            $or: [
+                { date: { $gt: today } },
+                { date: today, time: { $gt: nowHHMM } }
+            ]
+        }).sort({ date: 1, time: 1 }).lean();
+        res.json(slots);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -310,7 +351,7 @@ app.get('/api/slots/doctor/:doctorId', async (req, res) => {
 // GET slots for hospital (dashboard — show all including expired so dashboard has history)
 app.get('/api/slots/hospital/:hospitalId', async (req, res) => {
     try {
-        await cleanExpiredSlots();
+        cleanExpiredSlots().catch(() => {});
         const hospitalId = parseInt(req.params.hospitalId);
         const today = new Date().toISOString().split('T')[0];
         const slots = await TimeSlot.find({
@@ -705,6 +746,10 @@ app.get('/api/stats/hospital/:hospitalId', async (req, res) => {
 // ==============================
 // GLOBAL SEARCH
 // ==============================
+// FIX: field projection — only fetch fields we actually use, not entire documents
+const DOCTOR_PROJ = { doctorId:1, name:1, specialization:1, hospital:1, hospitalId:1, available:1, image:1, rating:1, experience:1, phone:1, email:1, distance:1 };
+const CLINIC_PROJ  = { clinicId:1, doctorName:1, specialization:1, name:1, available:1, image:1, rating:1, experience:1, phone:1, email:1, consultationFee:1, timings:1, address:1 };
+
 app.get('/api/global-search', async (req, res) => {
     try {
         const { query, specialization, availableOnly, entityType } = req.query;
@@ -720,26 +765,34 @@ app.get('/api/global-search', async (req, res) => {
             doctorFilter.$or = [{ name: searchRegex }, { specialization: searchRegex }, { hospital: searchRegex }];
             clinicFilter.$or = [{ doctorName: searchRegex }, { specialization: searchRegex }, { name: searchRegex }];
         }
-        let results = [];
-        if (!entityType || entityType === 'all' || entityType === 'hospital') {
-            const doctors = await Doctor.find(doctorFilter).sort({ available: -1, rating: -1 });
-            results = results.concat(doctors.map(d => ({
-                id: d.doctorId, name: d.name, specialization: d.specialization,
+
+        // FIX: run both queries in parallel with lean() + projection
+        const [doctors, clinics] = await Promise.all([
+            (!entityType || entityType === 'all' || entityType === 'hospital')
+                ? Doctor.find(doctorFilter, DOCTOR_PROJ).sort({ available: -1, rating: -1 }).lean()
+                : [],
+            (!entityType || entityType === 'all' || entityType === 'clinic')
+                ? Clinic.find(clinicFilter, CLINIC_PROJ).sort({ available: -1, rating: -1 }).lean()
+                : []
+        ]);
+
+        const results = [
+            ...doctors.map(d => ({
+                id: d.doctorId, doctorId: d.doctorId, hospitalId: d.hospitalId,
+                name: d.name, specialization: d.specialization,
                 entityName: d.hospital, entityType: 'hospital', distance: d.distance,
                 available: d.available, image: d.image, rating: d.rating,
                 experience: d.experience, phone: d.phone, email: d.email
-            })));
-        }
-        if (!entityType || entityType === 'all' || entityType === 'clinic') {
-            const clinics = await Clinic.find(clinicFilter).sort({ available: -1, rating: -1 });
-            results = results.concat(clinics.map(c => ({
+            })),
+            ...clinics.map(c => ({
                 id: c.clinicId, name: c.doctorName, specialization: c.specialization,
                 entityName: c.name, entityType: 'clinic', distance: 'Home Visit',
                 available: c.available, image: c.image, rating: c.rating,
                 experience: c.experience, phone: c.phone, email: c.email,
                 consultationFee: c.consultationFee, timings: c.timings, address: c.address
-            })));
-        }
+            }))
+        ];
+
         results.sort((a, b) => {
             if (a.available !== b.available) return b.available ? 1 : -1;
             return (b.rating || 0) - (a.rating || 0);
