@@ -207,7 +207,7 @@ html, body {
 }
 .home-header h1 { font-size: 1.5rem; font-weight: 800; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-header p { color: rgba(255,255,255,.85); font-size: .85rem; font-family: var(--font-body); }
-.header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; max-width: 55%; }
+.header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .welcome-badge {
   background: white; color: var(--green-600);
   font-size: .8rem; font-weight: 600; padding: 8px 14px;
@@ -1306,10 +1306,13 @@ html, body {
   gap: 8px;
   flex-shrink: 0;
   flex-wrap: nowrap;
+  max-width: 50%;
 }
-@media (max-width: 400px) {
-  .header-actions { flex-direction: row; gap: 6px; }
-  .welcome-badge { font-size: .72rem; padding: 5px 9px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 420px) {
+  .home-header { flex-wrap: wrap; row-gap: 8px; }
+  .header-left { flex: 1 1 100%; min-width: 0; }
+  .header-actions { flex: 1 1 100%; justify-content: flex-start; max-width: 100%; }
+  .welcome-badge { font-size: .72rem; padding: 5px 9px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .btn-logout { font-size: .72rem; padding: 6px 10px; }
 }
 
@@ -1593,13 +1596,15 @@ html, body {
 }
 .dashboard-doctor-info {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
+  flex: 1;
 }
 .dashboard-doctor-info h3 {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
   font-size: .88rem;
+  word-break: break-word;
 }
 .dashboard-doctor-actions {
   flex-wrap: wrap;
