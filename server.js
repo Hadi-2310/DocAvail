@@ -120,7 +120,7 @@ app.post('/api/patients/login', async (req, res) => {
         if (!patient) return res.status(404).json({ error: 'No account found with this email' });
         // Compare entered password with hashed password in DB
         const isMatch = await bcrypt.compare(password, patient.password);
-        if (!isMatch) return res.status(401).json({ error: 'Incorrect password. Forgot your password? Contact admin: support@docavail.com' });
+        if (!isMatch) return res.status(401).json({ error: 'Incorrect password. Forgot your password? Contact admin: docavail4@gmail.com' });
         res.json({ success: true, patient: { id: patient._id, name: patient.name, email: patient.email, phone: patient.phone, age: patient.age } });
     } catch (error) {
         res.status(500).json({ error: error.message });
