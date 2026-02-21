@@ -1482,25 +1482,28 @@ html, body {
 .specialist-results-list { padding: 0 12px; }
 .results-count-bar { padding: 4px 12px 8px; }
 
-/* ── Spec result cards: no overflow ── */
+/* ── Spec result cards ── */
 .spec-result-card {
   padding: 12px;
   gap: 10px;
-  overflow: hidden;
+  overflow: visible;
 }
 .spec-result-info {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
+  flex: 1;
 }
 .spec-result-info h4 {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-word;
 }
 .spec-result-entity {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-word;
 }
 
 /* ── Dashboard header ── */
