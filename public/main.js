@@ -765,9 +765,11 @@ function startVoiceListening() {
     if (!SR) { document.getElementById('voice-status').textContent='❌ Voice not supported. Use Chrome or Edge.'; return; }
     if (STATE.recognition) { try{STATE.recognition.abort();}catch(e){} STATE.recognition=null; }
     const r = new SR();
-    r.continuous=true; r.interimResults=true; r.maxAlternatives=3;
-    r.lang='en-US'; // English only
-    STATE.recognition=r; STATE._finalTranscript='';
+    // FIX: continuous=false fires onend naturally when user stops → no restart loop on mobile
+    // FIX: maxAlternatives=1 reduces processing overhead
+    r.continuous=false; r.interimResults=true; r.maxAlternatives=1;
+    r.lang='en-US';
+    STATE.recognition=r; STATE._finalTranscript=''; STATE._voiceProcessed=false;
     r.onstart=()=>{
         STATE.isVoiceListening=true;
         document.getElementById('mic-button').classList.add('active');
@@ -786,12 +788,17 @@ function startVoiceListening() {
         }
         STATE._finalTranscript+=final;
         document.getElementById('voice-transcript').textContent=(STATE._finalTranscript+interim).trim()||'...';
+        // FIX: reduced from 1200ms → 400ms for snappier response
         if (final.trim().length>0) {
             clearTimeout(STATE._vTimer);
             STATE._vTimer=setTimeout(()=>{
                 const q=STATE._finalTranscript.trim();
-                if(q.length>2){stopVoiceListening();processVoiceQuery(q);}
-            },1200);
+                if(q.length>2 && !STATE._voiceProcessed){
+                    STATE._voiceProcessed=true;
+                    stopVoiceListening();
+                    processVoiceQuery(q);
+                }
+            },400);
         }
     };
     r.onerror=(ev)=>{
@@ -803,8 +810,22 @@ function startVoiceListening() {
             document.getElementById('voice-status').textContent='❌ Error: '+ev.error+'. Try again.';
         stopVoiceListening();
     };
-    r.onend=()=>{ if(STATE.isVoiceListening){try{STATE.recognition.start();}catch(e){stopVoiceListening();}} };
-    STATE._finalTranscript='';
+    // FIX: onend now correctly fires after speech ends (continuous=false)
+    // Process any captured transcript immediately instead of waiting/restarting
+    r.onend=()=>{
+        if(STATE.isVoiceListening && !STATE._voiceProcessed){
+            const q=STATE._finalTranscript.trim();
+            if(q.length>2){
+                STATE._voiceProcessed=true;
+                clearTimeout(STATE._vTimer);
+                stopVoiceListening();
+                processVoiceQuery(q);
+            } else {
+                stopVoiceListening();
+            }
+        }
+    };
+    STATE._finalTranscript=''; STATE._voiceProcessed=false;
     try{r.start();}catch(e){document.getElementById('voice-status').textContent='❌ Could not start microphone. Try refreshing.';}
 }
 function stopVoiceListening() {
@@ -824,50 +845,47 @@ async function processVoiceQuery(transcript) {
     if (/\b(emergency|urgent|ambulance|help me)\b/.test(lower)) {
         document.getElementById('voice-response-box').style.display = 'block';
         document.getElementById('voice-response').innerHTML = '<strong>🚨 Opening Emergency GPS mode...</strong>';
-        setTimeout(() => { navigateToScreen('hospital-list-screen'); setTimeout(handleGeoEmergency, 300); }, 800);
+        setTimeout(() => { navigateToScreen('hospital-list-screen'); setTimeout(handleGeoEmergency, 300); }, 500);
         return;
     }
 
-    // ── Step 1: Try to match a hospital OR clinic name from DB ──
-    // Fetches live data so any newly added hospital/clinic is automatically found
+    // ── Step 1: Use cached hospitals/clinics — only fetch if not yet loaded ──
+    // FIX: avoids re-fetching entire DB on every voice query
+    let hospitals = STATE.hospitals;
+    let clinics   = STATE.clinics;
+    if (!hospitals || !hospitals.length || !clinics || !clinics.length) {
+        try {
+            [hospitals, clinics] = await Promise.all([
+                apiFetch('/hospitals'),
+                apiFetch('/clinics')
+            ]);
+            STATE.hospitals = hospitals;
+            STATE.clinics   = clinics;
+        } catch(e) { hospitals = []; clinics = []; }
+    }
+
     let hospitalMatch = null, clinicMatch = null;
-    try {
-        const [hospitals, clinics] = await Promise.all([
-            apiFetch('/hospitals'),
-            apiFetch('/clinics')
-        ]);
+    const words = str => str.toLowerCase().replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(w => w.length >= 3);
 
-        // Helper: extract meaningful words (3+ chars) from a string
-        const words = str => str.toLowerCase().replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(w => w.length >= 3);
+    for (const h of (hospitals || [])) {
+        const searchable = words(h.name + ' ' + (h.location||'') + ' ' + (h.type||''));
+        if (searchable.some(w => lower.includes(w))) { hospitalMatch = h; break; }
+    }
+    for (const cl of (clinics || [])) {
+        const searchable = words(
+            cl.name + ' ' + (cl.doctorName||'') + ' ' +
+            (cl.location||'') + ' ' + (cl.specialization||'') + ' ' + (cl.address||'')
+        );
+        if (searchable.some(w => lower.includes(w))) { clinicMatch = cl; break; }
+    }
 
-        // Match hospital — search name, location, type
-        for (const h of (hospitals || [])) {
-            const searchable = words(h.name + ' ' + (h.location||'') + ' ' + (h.type||''));
-            if (searchable.some(w => lower.includes(w))) { hospitalMatch = h; break; }
-        }
+    if (hospitalMatch && clinicMatch) {
+        const hScore = words(hospitalMatch.name).filter(w => lower.includes(w)).length;
+        const cScore = words(clinicMatch.name + ' ' + (clinicMatch.doctorName||'')).filter(w => lower.includes(w)).length;
+        if (cScore > hScore) hospitalMatch = null; else clinicMatch = null;
+    }
 
-        // Match clinic — search clinic name, doctor name, location, area, specialization
-        // Run even if hospital matched so we can pick the closer match later
-        for (const cl of (clinics || [])) {
-            const searchable = words(
-                cl.name + ' ' +
-                (cl.doctorName||'') + ' ' +
-                (cl.location||'') + ' ' +
-                (cl.specialization||'') + ' ' +
-                (cl.address||'')
-            );
-            if (searchable.some(w => lower.includes(w))) { clinicMatch = cl; break; }
-        }
-
-        // If both matched, prefer the one whose name has MORE words in common
-        if (hospitalMatch && clinicMatch) {
-            const hScore = words(hospitalMatch.name).filter(w => lower.includes(w)).length;
-            const cScore = words(clinicMatch.name + ' ' + (clinicMatch.doctorName||'')).filter(w => lower.includes(w)).length;
-            if (cScore > hScore) hospitalMatch = null; else clinicMatch = null;
-        }
-    } catch(e) {}
-
-    // ── Step 2: If hospital matched → go to its doctors ──────
+    // ── Step 2: Navigate instantly — no extra API call needed ──
     const respBox = document.getElementById('voice-response-box');
     const respEl  = document.getElementById('voice-response');
     respBox.style.display = 'block';
@@ -875,7 +893,8 @@ async function processVoiceQuery(transcript) {
     if (hospitalMatch) {
         respEl.innerHTML = `🏥 Found <strong>${hospitalMatch.name}</strong> — opening doctors list...`;
         document.getElementById('voice-status').textContent = 'Navigating...';
-        setTimeout(() => navigateToScreen('doctors-list-screen', hospitalMatch.hospitalId), 800);
+        // FIX: reduced delay 800ms → 300ms
+        setTimeout(() => navigateToScreen('doctors-list-screen', hospitalMatch.hospitalId), 300);
         document.getElementById('voice-results').style.display = 'none';
         return;
     }
@@ -884,41 +903,31 @@ async function processVoiceQuery(transcript) {
         respEl.innerHTML = `🏠 Found <strong>${clinicMatch.name}</strong> — opening details...`;
         document.getElementById('voice-status').textContent = 'Opening...';
         const clinicAsDoctor = {
-            isClinic: true,
-            doctorId: clinicMatch.clinicId,
-            id: clinicMatch.clinicId,
-            name: clinicMatch.doctorName,
-            specialization: clinicMatch.specialization,
-            hospital: clinicMatch.name,
-            available: clinicMatch.available,
-            image: clinicMatch.image,
-            rating: clinicMatch.rating,
-            experience: clinicMatch.experience,
-            phone: clinicMatch.phone,
-            email: clinicMatch.email,
-            consultationFee: clinicMatch.consultationFee,
+            isClinic: true, doctorId: clinicMatch.clinicId, id: clinicMatch.clinicId,
+            name: clinicMatch.doctorName, specialization: clinicMatch.specialization,
+            hospital: clinicMatch.name, available: clinicMatch.available,
+            image: clinicMatch.image, rating: clinicMatch.rating,
+            experience: clinicMatch.experience, phone: clinicMatch.phone,
+            email: clinicMatch.email, consultationFee: clinicMatch.consultationFee,
             timings: clinicMatch.timings
         };
-        setTimeout(() => navigateToScreen('doctor-detail', clinicAsDoctor), 800);
+        setTimeout(() => navigateToScreen('doctor-detail', clinicAsDoctor), 300);
         document.getElementById('voice-results').style.display = 'none';
         return;
     }
 
-    // ── Step 3: Match a department/specialty ─────────────────
-    // Simple map: specialty name → keywords a patient might say
+    // ── Step 3: Match specialty ───────────────────────────────
     const specMap = [
         ['Cardiologist',      ['heart','cardiac','cardiology','cardiologist','chest pain','palpitation','blood pressure','hypertension']],
         ['Pediatrician',      ['pediatric','paediatric','child','children','baby','infant','kids','my son','my daughter']],
         ['Dermatologist',     ['skin','dermatology','rash','acne','eczema','hair loss','itching','dermatologist']],
         ['Orthopedic',        ['orthopedic','bone','joint','fracture','knee','back pain','spine','shoulder','ortho']],
-        ['Neurologist',       ['neuro','neurology','brain','migraine','headache','seizure','stroke','nerve','dizziness']],
-        ['General Physician', ['general','physician','fever','cold','flu','cough','checkup','gp','general medicine']],
+        ['Neurologist',       ['neuro','neurology','brain','migraine','headache','seizure','stroke','nerve','dizziness','vertigo','epilepsy']],
+        ['General Physician', ['general','physician','fever','cold','flu','cough','checkup','gp','general medicine','diabetes','thyroid','infection','viral','weakness','fatigue']],
         ['Family Medicine',   ['family','family medicine','family doctor','family clinic','all ages']],
         ['Gynecologist',      ['gynecology','gynaecology','women','pregnancy','periods','menstrual','pcos','gynecologist']],
         ['Oncologist',        ['cancer','oncology','tumor','chemotherapy','oncologist']],
         ['Gastroenterologist',['gastro','stomach','digestive','liver','gut','gastroenterologist','endoscopy']],
-        ['Neurologist',       ['neurology','vertigo','epilepsy','parkinson','dementia','memory loss']],
-        ['General Physician', ['diabetes','thyroid','infection','viral','weakness','fatigue','not feeling well']],
     ];
 
     let spec = '';
@@ -931,7 +940,7 @@ async function processVoiceQuery(transcript) {
 
     if (!results.length) {
         respEl.innerHTML = `😔 No results found for <strong>"${transcript}"</strong>.<br>
-          <span style="font-size:.82rem;color:#6b7280">Try saying a department name like <em>"cardiology"</em>, or a hospital name like <em>"KIMS"</em>.</span>`;
+          <span style="font-size:.82rem;color:#6b7280">Try saying a department like <em>"cardiology"</em>, or a hospital name like <em>"KIMS"</em>.</span>`;
         document.getElementById('voice-status').textContent = 'Tap to try again';
         return;
     }
