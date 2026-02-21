@@ -865,24 +865,35 @@ async function processVoiceQuery(transcript) {
     }
 
     let hospitalMatch = null, clinicMatch = null;
-    const words = str => str.toLowerCase().replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(w => w.length >= 3);
 
+    // Extract meaningful words from a string (4+ chars, skip generic words like "hospital","clinic","doctor")
+    const STOP = new Set(['hospital','clinic','doctor','doctors','medical','centre','center','care','health','home','the','and','for']);
+    const words = str => str.toLowerCase().replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(w => w.length >= 3 && !STOP.has(w));
+    const spokenWords = words(lower);
+
+    // Score: how many meaningful name-words appear in what the user said
+    // FIX: was checking wrong direction — now correctly checks if spoken words match the name
+    let bestHospScore = 0, bestClinicScore = 0;
     for (const h of (hospitals || [])) {
-        const searchable = words(h.name + ' ' + (h.location||'') + ' ' + (h.type||''));
-        if (searchable.some(w => lower.includes(w))) { hospitalMatch = h; break; }
+        const nameWords = words(h.name);
+        const score = nameWords.filter(w => spokenWords.includes(w) || lower.includes(w)).length;
+        if (score > 0 && score >= Math.max(1, nameWords.length - 1) && score > bestHospScore) {
+            bestHospScore = score;
+            hospitalMatch = h;
+        }
     }
     for (const cl of (clinics || [])) {
-        const searchable = words(
-            cl.name + ' ' + (cl.doctorName||'') + ' ' +
-            (cl.location||'') + ' ' + (cl.specialization||'') + ' ' + (cl.address||'')
-        );
-        if (searchable.some(w => lower.includes(w))) { clinicMatch = cl; break; }
+        const nameWords = words(cl.name + ' ' + (cl.doctorName||''));
+        const score = nameWords.filter(w => spokenWords.includes(w) || lower.includes(w)).length;
+        if (score > 0 && score >= Math.max(1, nameWords.length - 1) && score > bestClinicScore) {
+            bestClinicScore = score;
+            clinicMatch = cl;
+        }
     }
 
+    // If both matched, keep the higher-scoring one
     if (hospitalMatch && clinicMatch) {
-        const hScore = words(hospitalMatch.name).filter(w => lower.includes(w)).length;
-        const cScore = words(clinicMatch.name + ' ' + (clinicMatch.doctorName||'')).filter(w => lower.includes(w)).length;
-        if (cScore > hScore) hospitalMatch = null; else clinicMatch = null;
+        if (bestClinicScore > bestHospScore) hospitalMatch = null; else clinicMatch = null;
     }
 
     // ── Step 2: Navigate instantly — no extra API call needed ──
