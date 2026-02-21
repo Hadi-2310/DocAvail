@@ -8,15 +8,21 @@
     "dev": "nodemon server.js",
     "seed": "node seedDatabase.js"
   },
-  "keywords": ["healthcare", "mongodb", "express", "nodejs"],
+  "keywords": [
+    "healthcare",
+    "mongodb",
+    "express",
+    "nodejs"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.21.2",
-    "mongoose": "^8.9.5",
+    "bcryptjs": "^3.0.3",
+    "body-parser": "^1.20.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
-    "body-parser": "^1.20.3"
+    "express": "^4.21.2",
+    "mongoose": "^8.9.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

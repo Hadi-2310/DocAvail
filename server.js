@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const { Hospital, Doctor, Clinic, TimeSlot, Booking, Patient } = require('./models');
@@ -27,10 +28,7 @@ function requireDashboardAuth(req, res, next) {
     next();
 }
 
-mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
+mongoose.connect(process.env.MONGODB_URI)
 .then(async () => {
     console.log('✅ MongoDB Connected Successfully');
 
@@ -105,7 +103,9 @@ app.post('/api/patients/register', async (req, res) => {
         const { name, email, password, phone, age, address } = req.body;
         const existing = await Patient.findOne({ email: email.toLowerCase() });
         if (existing) return res.status(400).json({ error: 'Email already registered' });
-        const patient = new Patient({ name, email: email.toLowerCase(), password, phone, age, address });
+        // Hash password before saving — plain text never stored
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const patient = new Patient({ name, email: email.toLowerCase(), password: hashedPassword, phone, age, address });
         await patient.save();
         res.status(201).json({ success: true, patient: { id: patient._id, name: patient.name, email: patient.email } });
     } catch (error) {
@@ -118,7 +118,9 @@ app.post('/api/patients/login', async (req, res) => {
         const { email, password } = req.body;
         const patient = await Patient.findOne({ email: email.toLowerCase() });
         if (!patient) return res.status(404).json({ error: 'No account found with this email' });
-        if (patient.password !== password) return res.status(401).json({ error: 'Incorrect password' });
+        // Compare entered password with hashed password in DB
+        const isMatch = await bcrypt.compare(password, patient.password);
+        if (!isMatch) return res.status(401).json({ error: 'Incorrect password. Forgot your password? Contact admin: support@docavail.com' });
         res.json({ success: true, patient: { id: patient._id, name: patient.name, email: patient.email, phone: patient.phone, age: patient.age } });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -828,6 +830,11 @@ app.delete('/api/clinics/:id', async (req, res) => {
 });
 
 app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/public/index.html');
+});
+
+// Catch-all: prevents blank page on refresh in production
+app.get('*', (req, res) => {
     res.sendFile(__dirname + '/public/index.html');
 });
 
