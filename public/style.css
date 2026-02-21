@@ -199,19 +199,20 @@ html, body {
   align-items: center; justify-content: space-between; gap: 12px;
   flex-wrap: wrap;
 }
-.header-left { display: flex; align-items: center; gap: 14px; }
+.header-left { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
 .header-logo {
   width: 48px; height: 48px; border-radius: 14px;
   background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.35);
   display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;
 }
-.home-header h1 { font-size: 1.5rem; font-weight: 800; color: white; }
+.home-header h1 { font-size: 1.5rem; font-weight: 800; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-header p { color: rgba(255,255,255,.85); font-size: .85rem; font-family: var(--font-body); }
-.header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; max-width: 55%; }
 .welcome-badge {
   background: white; color: var(--green-600);
   font-size: .8rem; font-weight: 600; padding: 8px 14px;
   border-radius: 20px; white-space: nowrap;
+  max-width: 150px; overflow: hidden; text-overflow: ellipsis;
 }
 .btn-logout {
   background: white; color: var(--gray-700); border: none;
@@ -584,7 +585,7 @@ html, body {
 }
 .dashboard-doctor-image { width: 50px; height: 50px; border-radius: 12px; object-fit: cover; flex-shrink: 0; }
 .dashboard-doctor-info { flex: 1; min-width: 0; }
-.dashboard-doctor-info h3 { font-size: .95rem; font-weight: 700; color: var(--gray-900); }
+.dashboard-doctor-info h3 { font-size: .95rem; font-weight: 700; color: var(--gray-900); word-break: break-word; white-space: normal; }
 .dashboard-doctor-actions { display: flex; gap: 8px; margin-top: 6px; }
 .btn-edit, .btn-del {
   padding: 5px 12px; border-radius: 8px; font-size: .78rem;
