@@ -574,27 +574,35 @@ async function renderDoctorsList() {
     const today = todayStr();
     const now = new Date();
     let slotMap = {};
+    let futureSlotMap = {}; // total remaining future slots per doctor (for unavailable doctors)
     try {
         const hId = STATE.selectedHospitalId;
         const slots = await apiFetch('/slots/hospital/' + hId);
-        slots
-            .filter(s => {
-                if (s.date !== today || !s.isActive) return false;
-                // ── KEY FIX: exclude slots where time has already passed ──
-                const [y, mo, day] = s.date.split('-').map(Number);
-                const [h, min] = s.time.split(':').map(Number);
-                const slotTime = new Date(y, mo - 1, day, h, min, 0);
-                return slotTime > now;
-            })
-            .forEach(s => {
+        slots.forEach(s => {
+            if (!s.isActive) return;
+            const [y, mo, day] = s.date.split('-').map(Number);
+            const [h, min] = s.time.split(':').map(Number);
+            const slotTime = new Date(y, mo - 1, day, h, min, 0);
+            if (slotTime <= now) return; // skip past slots
+
+            // Today's slots → for available badge
+            if (s.date === today) {
                 if (!slotMap[s.doctorId]) slotMap[s.doctorId] = { total: 0, filled: 0 };
                 slotMap[s.doctorId].total += s.maxBookings;
                 slotMap[s.doctorId].filled += s.currentBookings;
-            });
+            }
+
+            // All future slots → for upcoming badge on unavailable doctors
+            const rem = s.maxBookings - s.currentBookings;
+            if (rem > 0) {
+                futureSlotMap[s.doctorId] = (futureSlotMap[s.doctorId] || 0) + rem;
+            }
+        });
     } catch(e) {}
 
     c.innerHTML=doctors.map(d=>{
         const slotInfo = slotMap[d.doctorId];
+        const futureCount = futureSlotMap[d.doctorId] || 0;
         let slotBadge = '';
         if (d.available) {
             // Available doctor: show today's slot count
@@ -606,8 +614,8 @@ async function renderDoctorsList() {
             }
         } else {
             // Unavailable doctor: show future slot count if any
-            if (d.futureSlotCount > 0) {
-                slotBadge = `<div class="slot-count-badge future">📅 ${d.futureSlotCount} upcoming slot${d.futureSlotCount!==1?'s':''} — tap to book</div>`;
+            if (futureCount > 0) {
+                slotBadge = `<div class="slot-count-badge future">📅 ${futureCount} upcoming slot${futureCount!==1?'s':''} — tap to book</div>`;
             }
         }
         return `
