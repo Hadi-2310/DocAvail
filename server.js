@@ -474,9 +474,13 @@ app.post('/api/bookings', async (req, res) => {
             const existingWithDoctor = await Booking.findOne({ doctorId, patientId, date: slot.date, status: { $ne: 'cancelled' } });
             if (existingWithDoctor) {
                 const existingSlot = await TimeSlot.findById(existingWithDoctor.slotId);
-                const existingSlotTime = existingSlot ? slotToDate(existingSlot.date, existingSlot.time) : null;
-                // Only block if the existing slot time is still in the future
-                if (!existingSlotTime || existingSlotTime > new Date()) {
+                // If slot was deleted or not found, fall back to booking's own time field
+                const existingSlotTime = existingSlot
+                    ? slotToDate(existingSlot.date, existingSlot.time)
+                    : (existingWithDoctor.time ? slotToDate(existingWithDoctor.date, existingWithDoctor.time) : null);
+                // Only block if the existing slot time is definitively still in the future
+                // If we can't determine the time at all, allow the booking (don't block on ambiguity)
+                if (existingSlotTime && existingSlotTime > new Date()) {
                     return res.status(400).json({ error: `You already have an upcoming booking with this doctor on ${slot.date}. Please choose a different date or wait until your current slot time has passed.` });
                 }
             }
