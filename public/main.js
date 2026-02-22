@@ -158,12 +158,70 @@ function navigateToScreen(screen, data = null) {
     if (!el) return;
     el.classList.add('active');
     STATE.currentScreen = screen;
-    if (screen === 'hospital-list-screen') { updatePatientGreeting(); renderHospitalsList(); renderClinicsList(); }
-    else if (screen === 'doctors-list-screen') { if (data) STATE.selectedHospitalId = data; renderDoctorsList(); }
-    else if (screen === 'hospital-dashboard') { STATE.currentHospitalId = data; STATE.currentDashTab = 'doctors'; renderHospitalDashboard(); }
-    else if (screen === 'clinic-dashboard') { STATE.currentClinicId = data; renderClinicDashboard(); }
+    _POLL.stopAll(); // clear all polls when navigating away
+
+    if (screen === 'hospital-list-screen') {
+        updatePatientGreeting(); renderHospitalsList(); renderClinicsList();
+        // Refresh hospital list + doctor availability every 30s for patients
+        _POLL.start('patient-hospitals', () => { renderHospitalsList(); renderClinicsList(); }, 30000);
+    }
+    else if (screen === 'doctors-list-screen') {
+        if (data) STATE.selectedHospitalId = data; renderDoctorsList();
+        // Refresh doctor availability every 20s so patients see live status
+        _POLL.start('patient-doctors', renderDoctorsList, 20000);
+    }
+    else if (screen === 'hospital-dashboard') {
+        STATE.currentHospitalId = data; STATE.currentDashTab = 'doctors'; renderHospitalDashboard();
+        // Poll stats every 15s, current tab content every 20s
+        _POLL.start('hosp-stats', refreshDashStats, 15000);
+        _POLL.start('hosp-tab', () => {
+            const tab = STATE.currentDashTab;
+            if (tab === 'doctors')  renderDashDoctors();
+            else if (tab === 'slots')    renderDashSlots();
+            else if (tab === 'bookings') renderDashBookings();
+        }, 20000);
+    }
+    else if (screen === 'clinic-dashboard') {
+        STATE.currentClinicId = data; renderClinicDashboard();
+        // Poll clinic bookings every 20s
+        _POLL.start('clinic-tab', () => {
+            const tab = STATE.currentClinicTab || 'info';
+            if (tab === 'bookings') renderBookingsForClinic(STATE.currentClinicId);
+            else renderClinicDashboard();
+        }, 20000);
+    }
     else if (screen === 'doctor-detail' && data) { STATE.selectedDoctor = data; renderDoctorDetail(); }
     else if (screen === 'voice-assistant') { resetVoiceAssistant(); }
+}
+
+// ─── REAL-TIME POLLING ENGINE ─────────────────────────────
+// Central poll manager — starts/stops intervals as user navigates screens.
+// Each screen registers what to refresh and how often.
+const _POLL = {
+    _timers: {},
+    start(key, fn, ms) {
+        this.stop(key);
+        fn(); // run immediately
+        this._timers[key] = setInterval(fn, ms);
+    },
+    stop(key) {
+        if (this._timers[key]) { clearInterval(this._timers[key]); delete this._timers[key]; }
+    },
+    stopAll() {
+        Object.keys(this._timers).forEach(k => this.stop(k));
+    }
+};
+
+// Update the stats bar (available doctors count) without re-rendering full dashboard
+async function refreshDashStats() {
+    const stats = await fetchHospitalStats(STATE.currentHospitalId).catch(() => null);
+    if (!stats) return;
+    const td = document.getElementById('total-doctors');
+    const ad = document.getElementById('available-doctors');
+    const tb = document.getElementById('total-bookings-stat');
+    if (td) td.textContent = stats.totalDoctors || 0;
+    if (ad) ad.textContent = stats.availableDoctors || 0;
+    if (tb) tb.textContent = stats.totalBookings || 0;
 }
 
 // ─── AUTH ─────────────────────────────────────────────────
@@ -538,11 +596,19 @@ async function renderDoctorsList() {
     c.innerHTML=doctors.map(d=>{
         const slotInfo = slotMap[d.doctorId];
         let slotBadge = '';
-        if (slotInfo) {
-            const rem = slotInfo.total - slotInfo.filled;
-            slotBadge = rem > 0
-                ? `<div class="slot-count-badge available">🗓 ${rem} slot${rem!==1?'s':''} today</div>`
-                : `<div class="slot-count-badge full">🚫 Fully booked today</div>`;
+        if (d.available) {
+            // Available doctor: show today's slot count
+            if (slotInfo) {
+                const rem = slotInfo.total - slotInfo.filled;
+                slotBadge = rem > 0
+                    ? `<div class="slot-count-badge available">🗓 ${rem} slot${rem!==1?'s':''} today</div>`
+                    : `<div class="slot-count-badge full">🚫 Fully booked today</div>`;
+            }
+        } else {
+            // Unavailable doctor: show future slot count if any
+            if (d.futureSlotCount > 0) {
+                slotBadge = `<div class="slot-count-badge future">📅 ${d.futureSlotCount} upcoming slot${d.futureSlotCount!==1?'s':''} — tap to book</div>`;
+            }
         }
         return `
       <div class="doctor-card ${!d.available?'unavailable':''}" onclick="showDoctorDetail(${d.doctorId})">
@@ -610,10 +676,40 @@ function renderDoctorDetail() {
             <div class="detail-info-item">✉️<div><div class="detail-info-label">Email</div><div class="detail-info-val" style="word-break:break-all">${d.email||'N/A'}</div></div></div>
           </div>
         </div>
-        ${d.available
-          ? `<button class="btn-book" onclick="openBookingModal(STATE.selectedDoctor)">📅 Book Appointment</button>`
-          : `<div class="unavailable-notice">Doctor is currently not available. Please check back later.</div>`}
+        <div id="doctor-detail-book-area">
+          <div style="text-align:center;padding:8px;color:#94a3b8;font-size:.82rem">Checking available slots...</div>
+        </div>
       </div>`;
+    _renderDoctorBookBtn(d);
+}
+async function _renderDoctorBookBtn(d) {
+    const area = document.getElementById('doctor-detail-book-area');
+    if (!area) return;
+    const isClinic = d.isClinic;
+    const docId = d.doctorId || d.id;
+    let futureSlotCount = 0;
+    if (!isClinic) {
+        try {
+            const slots = await apiFetch('/slots/doctor/' + docId);
+            futureSlotCount = slots.filter(s => s.isActive).length;
+        } catch(e) {}
+    }
+    if (isClinic) {
+        area.innerHTML = d.available
+            ? '<button class="btn-book" onclick="openBookingModal(STATE.selectedDoctor)">📅 Book Appointment</button>'
+            : '<div class="unavailable-notice">Currently not accepting patients. Please check back later.</div>';
+        return;
+    }
+    if (futureSlotCount > 0) {
+        const warning = !d.available
+            ? '<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:10px;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 14px;font-size:.82rem;color:#92400e;font-weight:600">⚠️ Not available right now — but has <strong>' + futureSlotCount + '</strong> upcoming slot' + (futureSlotCount !== 1 ? 's' : '') + '</div>'
+            : '';
+        area.innerHTML = warning + '<button class="btn-book" onclick="openBookingModal(STATE.selectedDoctor)">📅 Book Appointment</button>';
+    } else if (d.available) {
+        area.innerHTML = '<button class="btn-book" onclick="openBookingModal(STATE.selectedDoctor)">📅 Book Appointment</button>';
+    } else {
+        area.innerHTML = '<div class="unavailable-notice">Doctor is currently unavailable and has no upcoming slots. Please check back later.</div>';
+    }
 }
 
 // ─── INLINE GPS EMERGENCY ─────────────────────────────────
@@ -996,6 +1092,13 @@ async function renderHospitalDashboard() {
 }
 function switchDashTab(tab) {
     STATE.currentDashTab=tab;
+    // Restart tab poll immediately so new tab gets data right away
+    _POLL.start('hosp-tab', () => {
+        const t = STATE.currentDashTab;
+        if (t === 'doctors')  renderDashDoctors();
+        else if (t === 'slots')    renderDashSlots();
+        else if (t === 'bookings') renderDashBookings();
+    }, 20000);
     document.querySelectorAll('.dash-tab').forEach((t,i)=>{
         t.classList.toggle('active',['doctors','slots','bookings'][i]===tab);
     });
@@ -1033,7 +1136,9 @@ async function renderDashDoctors() {
 async function toggleDoctorDB(id) {
     try {
         await fetch(`${API_URL}/doctors/${id}/availability`,{method:'PATCH',headers:{'Content-Type':'application/json'}});
-        renderDashDoctors(); showToast('✅ Availability updated','success');
+        // Refresh both the doctor list AND the stats counter at the top
+        await Promise.all([renderDashDoctors(), refreshDashStats()]);
+        showToast('✅ Availability updated','success');
     } catch(e){showToast('❌ Error updating','error');}
 }
 
@@ -1325,6 +1430,7 @@ function switchClinicTab(tab) {
         if(panel) panel.style.display=t===tab?'block':'none';
     });
     if(tab==='slots') renderClinicSlots(STATE.currentClinicId);
+    STATE.currentClinicTab = tab;
     if(tab==='bookings') renderBookingsForClinic(STATE.currentClinicId);
 }
 

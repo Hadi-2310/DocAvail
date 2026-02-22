@@ -334,6 +334,7 @@ html, body {
 }
 .slot-count-badge.available { background: #dcfce7; color: #166534; }
 .slot-count-badge.full      { background: #fee2e2; color: #991b1b; }
+.slot-count-badge.future    { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
 
 /* ============================================ EMERGENCY BAR */
 .filter-tab-row {

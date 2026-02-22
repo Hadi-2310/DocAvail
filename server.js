@@ -239,8 +239,21 @@ app.get('/api/doctors', async (req, res) => {
 app.get('/api/doctors/hospital/:hospitalId', async (req, res) => {
     try {
         const hospitalId = parseInt(req.params.hospitalId);
-        const doctors = await Doctor.find({ hospitalId }).sort({ available: -1, doctorId: 1 });
-        res.json(doctors);
+        const today = new Date().toISOString().split('T')[0];
+
+        const [doctors, futureSlots] = await Promise.all([
+            Doctor.find({ hospitalId }).sort({ available: -1, doctorId: 1 }).lean(),
+            TimeSlot.aggregate([
+                { $match: { hospitalId, isActive: true, date: { $gte: today } } },
+                { $group: { _id: '$doctorId', futureSlotCount: { $sum: 1 } } }
+            ])
+        ]);
+
+        const slotCountMap = {};
+        for (const s of futureSlots) slotCountMap[s._id] = s.futureSlotCount;
+
+        const result = doctors.map(d => ({ ...d, futureSlotCount: slotCountMap[d.doctorId] || 0 }));
+        res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
