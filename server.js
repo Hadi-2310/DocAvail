@@ -457,14 +457,40 @@ app.post('/api/bookings', async (req, res) => {
             const existingOnSlot = await Booking.findOne({ slotId, patientId, status: { $ne: 'cancelled' } });
             if (existingOnSlot) return res.status(400).json({ error: 'You have already booked this time slot.' });
 
-            // Option B: block same doctor same day only
+            // Block same doctor same day ONLY if the existing booking's slot hasn't passed yet
             const existingWithDoctor = await Booking.findOne({ doctorId, patientId, date: slot.date, status: { $ne: 'cancelled' } });
-            if (existingWithDoctor) return res.status(400).json({ error: `You already have a booking with this doctor on ${slot.date}. Please choose a different date.` });
+            if (existingWithDoctor) {
+                const existingSlot = await TimeSlot.findById(existingWithDoctor.slotId);
+                const existingSlotTime = existingSlot ? slotToDate(existingSlot.date, existingSlot.time) : null;
+                // Only block if the existing slot time is still in the future
+                if (!existingSlotTime || existingSlotTime > new Date()) {
+                    return res.status(400).json({ error: `You already have an upcoming booking with this doctor on ${slot.date}. Please choose a different date or wait until your current slot time has passed.` });
+                }
+            }
         }
         // ── End duplicate prevention ──────────────────────────────────────────
 
         const doctor = await Doctor.findOne({ doctorId });
         const hospital = await Hospital.findOne({ hospitalId });
+
+        // If not a hospital doctor, check if it's a clinic doctor
+        let resolvedDoctorName = 'Unknown';
+        let resolvedHospitalName = 'Unknown';
+        let resolvedSpecialization = '';
+
+        if (doctor) {
+            resolvedDoctorName = doctor.name;
+            resolvedSpecialization = doctor.specialization || '';
+        } else {
+            // Try clinic lookup (clinic doctors use clinicId as doctorId)
+            const clinic = await Clinic.findOne({ clinicId: parseInt(doctorId) });
+            if (clinic) {
+                resolvedDoctorName = clinic.doctorName;
+                resolvedSpecialization = clinic.specialization || '';
+                resolvedHospitalName = clinic.name || clinic.doctorName; // clinic name as entity name
+            }
+        }
+        if (hospital) resolvedHospitalName = hospital.name;
 
         const bookingId = 'BK' + Date.now();
         const booking = new Booking({
@@ -475,9 +501,10 @@ app.post('/api/bookings', async (req, res) => {
             patientContact,
             patientDescription,
             doctorId,
-            doctorName: doctor ? doctor.name : 'Unknown',
+            doctorName: resolvedDoctorName,
+            specialization: resolvedSpecialization,
             hospitalId,
-            hospitalName: hospital ? hospital.name : 'Unknown',
+            hospitalName: resolvedHospitalName,
             slotId,
             date: slot.date,
             time: slot.time

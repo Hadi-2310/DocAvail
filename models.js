@@ -66,6 +66,7 @@ const bookingSchema = new mongoose.Schema({
     patientDescription: { type: String, default: '' },
     doctorId: { type: Number, required: true },
     doctorName: { type: String, required: true },
+    specialization: { type: String, default: '' },
     hospitalId: { type: Number, required: true },
     hospitalName: { type: String, required: true },
     slotId: { type: mongoose.Schema.Types.ObjectId, ref: 'TimeSlot', default: null },

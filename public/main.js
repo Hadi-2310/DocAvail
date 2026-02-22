@@ -1454,10 +1454,17 @@ async function openBookingModal(doctor) {
         try {
             const existing = await apiFetch('/bookings/patient/' + pid);
             const docId = doctor.doctorId || doctor.id;
-            const alreadyBooked = existing.filter(b => b.doctorId == docId && b.status !== 'cancelled');
-            if (alreadyBooked.length && dupWarn) {
-                const dates = alreadyBooked.map(b => b.date).join(', ');
-                dupWarn.textContent = `⚠️ You already have ${alreadyBooked.length} active booking(s) with this doctor on: ${dates}`;
+            const now = new Date();
+            // Only warn about bookings whose slot time is still in the future
+            const upcomingBooked = existing.filter(b => {
+                if (b.doctorId != docId || b.status === 'cancelled') return false;
+                const [y, mo, day] = b.date.split('-').map(Number);
+                const [h, min] = (b.time || '00:00').split(':').map(Number);
+                return new Date(y, mo - 1, day, h, min, 0) > now;
+            });
+            if (upcomingBooked.length && dupWarn) {
+                const dates = upcomingBooked.map(b => b.date).join(', ');
+                dupWarn.textContent = `⚠️ You already have ${upcomingBooked.length} upcoming booking(s) with this doctor on: ${dates}`;
                 dupWarn.style.display = 'block';
             }
         } catch(e) {}
@@ -1600,7 +1607,7 @@ async function confirmBooking() {
                 b.status !== 'cancelled'
             );
             if (duplicate) {
-                showToast(`⚠️ You already have a booking with ${doctor.name} on ${BSTATE.selectedDate}. Choose a different date or a different doctor.`, 'error');
+                showToast(`⚠️ You already have an upcoming booking with ${doctor.name} on ${BSTATE.selectedDate}. Wait until your current slot time passes or choose a different date.`, 'error');
                 btn.disabled = false; btn.textContent = 'Confirm Booking';
                 return;
             }
@@ -1690,7 +1697,7 @@ async function renderPatientBookings() {
     const localPid = STATE.currentPatient?.id || STATE.currentPatient?.email || 'guest';
     const localBookings = getAllBookings().filter(b => (b.patientId||'guest') === localPid);
     const all = [...serverBookings.map(b=>({
-        id: b._id, doctorName: b.doctorName, specialization: b.doctorName,
+        id: b._id, doctorName: b.doctorName, specialization: b.specialization || b.doctorName,
         entityName: b.hospitalName, date: b.date, time: b.time,
         reason: b.patientDescription, status: b.status,
         patientName: b.patientName, createdAt: b.createdAt,
