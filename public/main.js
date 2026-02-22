@@ -1748,20 +1748,21 @@ async function confirmBooking() {
             let existingBookings = [];
             try { existingBookings = await apiFetch('/bookings/patient/' + pid); } catch(e) {}
             const doctorId = doctor.doctorId || doctor.id;
-            // Block same doctor same day ONLY if that booking's slot time is still in the future
+            // Only block if booking the exact same slot they already have (same doctor + same time + upcoming)
             const now = new Date();
             const duplicate = existingBookings.find(b => {
                 if (b.doctorId != doctorId) return false;
                 if (b.date !== BSTATE.selectedDate) return false;
                 if (b.status === 'cancelled') return false;
-                // Check if the existing booking's slot time has already passed
+                if (b.time !== BSTATE.selectedTime24) return false; // different time slot = allowed
+                // Only block if this exact slot time is still in the future
                 const [y, mo, day] = b.date.split('-').map(Number);
                 const [h, min] = (b.time || '00:00').split(':').map(Number);
                 const slotTime = new Date(y, mo - 1, day, h, min, 0);
-                return slotTime > now; // only block if slot is still upcoming
+                return slotTime > now;
             });
             if (duplicate) {
-                showToast(`⚠️ You already have an upcoming booking with ${doctor.name} on ${BSTATE.selectedDate}. Wait until your current slot time passes or choose a different date.`, 'error');
+                showToast(`⚠️ You already have a booking for this exact time slot with ${doctor.name}. Please choose a different time.`, 'error');
                 btn.disabled = false; btn.textContent = 'Confirm Booking';
                 return;
             }

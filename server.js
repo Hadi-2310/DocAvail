@@ -470,20 +470,8 @@ app.post('/api/bookings', async (req, res) => {
             const existingOnSlot = await Booking.findOne({ slotId, patientId, status: { $ne: 'cancelled' } });
             if (existingOnSlot) return res.status(400).json({ error: 'You have already booked this time slot.' });
 
-            // Block same doctor same day ONLY if the existing booking's slot hasn't passed yet
-            const existingWithDoctor = await Booking.findOne({ doctorId, patientId, date: slot.date, status: { $ne: 'cancelled' } });
-            if (existingWithDoctor) {
-                const existingSlot = await TimeSlot.findById(existingWithDoctor.slotId);
-                // If slot was deleted or not found, fall back to booking's own time field
-                const existingSlotTime = existingSlot
-                    ? slotToDate(existingSlot.date, existingSlot.time)
-                    : (existingWithDoctor.time ? slotToDate(existingWithDoctor.date, existingWithDoctor.time) : null);
-                // Only block if the existing slot time is definitively still in the future
-                // If we can't determine the time at all, allow the booking (don't block on ambiguity)
-                if (existingSlotTime && existingSlotTime > new Date()) {
-                    return res.status(400).json({ error: `You already have an upcoming booking with this doctor on ${slot.date}. Please choose a different date or wait until your current slot time has passed.` });
-                }
-            }
+            // Note: we only block booking the exact same slot twice (above).
+            // Same-day same-doctor is allowed — patient may want a different time slot.
         }
         // ── End duplicate prevention ──────────────────────────────────────────
 
