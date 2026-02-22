@@ -737,6 +737,7 @@ async function _renderDoctorBookBtn(d) {
     } catch(e) {}
 
     if (futureSlotCount > 0) {
+        // Has future slots — show booking button regardless of current availability (works for both hospitals and clinics)
         const warning = !d.available
             ? '<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:10px;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 14px;font-size:.82rem;color:#92400e;font-weight:600">⚠️ Not available right now — but has <strong>' + futureSlotCount + '</strong> upcoming spot' + (futureSlotCount !== 1 ? 's' : '') + '</div>'
             : '';
@@ -744,7 +745,11 @@ async function _renderDoctorBookBtn(d) {
     } else if (d.available) {
         area.innerHTML = '<button class="btn-book" onclick="openBookingModal(STATE.selectedDoctor)">📅 Book Appointment</button>';
     } else {
-        area.innerHTML = '<div class="unavailable-notice">Doctor is currently unavailable and has no upcoming slots. Please check back later.</div>';
+        // Unavailable AND no future slots
+        const msg = isClinic
+            ? 'Currently not accepting patients and has no upcoming slots. Please check back later.'
+            : 'Doctor is currently unavailable and has no upcoming slots. Please check back later.';
+        area.innerHTML = '<div class="unavailable-notice">' + msg + '</div>';
     }
 }
 
@@ -1602,6 +1607,7 @@ async function openBookingModal(doctor) {
                 if (b.doctorId != docId || b.status === 'cancelled') return false;
                 const [y, mo, day] = b.date.split('-').map(Number);
                 const [h, min] = (b.time || '00:00').split(':').map(Number);
+                // Only warn about bookings whose slot time is still in the future
                 return new Date(y, mo - 1, day, h, min, 0) > now;
             });
             if (upcomingBooked.length && dupWarn) {
@@ -1742,12 +1748,18 @@ async function confirmBooking() {
             let existingBookings = [];
             try { existingBookings = await apiFetch('/bookings/patient/' + pid); } catch(e) {}
             const doctorId = doctor.doctorId || doctor.id;
-            // Option B: block same doctor on same day only
-            const duplicate = existingBookings.find(b =>
-                b.doctorId == doctorId &&
-                b.date === BSTATE.selectedDate &&
-                b.status !== 'cancelled'
-            );
+            // Block same doctor same day ONLY if that booking's slot time is still in the future
+            const now = new Date();
+            const duplicate = existingBookings.find(b => {
+                if (b.doctorId != doctorId) return false;
+                if (b.date !== BSTATE.selectedDate) return false;
+                if (b.status === 'cancelled') return false;
+                // Check if the existing booking's slot time has already passed
+                const [y, mo, day] = b.date.split('-').map(Number);
+                const [h, min] = (b.time || '00:00').split(':').map(Number);
+                const slotTime = new Date(y, mo - 1, day, h, min, 0);
+                return slotTime > now; // only block if slot is still upcoming
+            });
             if (duplicate) {
                 showToast(`⚠️ You already have an upcoming booking with ${doctor.name} on ${BSTATE.selectedDate}. Wait until your current slot time passes or choose a different date.`, 'error');
                 btn.disabled = false; btn.textContent = 'Confirm Booking';
