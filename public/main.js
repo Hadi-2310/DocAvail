@@ -439,7 +439,32 @@ async function renderClinicsList() {
     c.innerHTML = '<div class="loading-pulse">Loading clinics</div>';
     const clinics = await fetchClinics();
     if (!clinics.length) { c.innerHTML='<div class="loading-pulse">No clinics found.</div>'; return; }
-    c.innerHTML = clinics.map(cl=>`
+
+    // Fetch future slots for all clinics to show upcoming badge on unavailable clinic cards
+    const now = new Date();
+    const today = todayStr();
+    let clinicFutureMap = {};
+    try {
+        await Promise.all(clinics.map(async cl => {
+            const slots = await apiFetch('/slots/doctor/' + cl.clinicId).catch(() => []);
+            slots.forEach(s => {
+                if (!s.isActive) return;
+                const [y, mo, day] = s.date.split('-').map(Number);
+                const [h, min] = s.time.split(':').map(Number);
+                const slotTime = new Date(y, mo - 1, day, h, min, 0);
+                if (slotTime <= now) return;
+                const rem = s.maxBookings - s.currentBookings;
+                if (rem > 0) clinicFutureMap[cl.clinicId] = (clinicFutureMap[cl.clinicId] || 0) + rem;
+            });
+        }));
+    } catch(e) {}
+
+    c.innerHTML = clinics.map(cl => {
+        const futureCount = clinicFutureMap[cl.clinicId] || 0;
+        const futureBadge = !cl.available && futureCount > 0
+            ? `<div class="slot-count-badge future">📅 ${futureCount} upcoming spot${futureCount!==1?'s':''} — tap to book</div>`
+            : '';
+        return `
       <div class="clinic-card" onclick="viewClinicDetail(${cl.clinicId})">
         <div class="clinic-icon">🏠</div>
         <div class="clinic-info">
@@ -452,10 +477,11 @@ async function renderClinicsList() {
           <span class="avail-badge ${cl.available?'green':'red'}">${cl.available?'Available':'Unavailable'}</span>
           <div class="clinic-fee-badge">💰 ${cl.consultationFee}</div>
           <div class="clinic-timings">⏰ ${cl.timings}</div>
+          ${futureBadge}
         </div>
         <div class="entity-arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
       </div>
-    `).join('');
+    `}).join('');
 }
 async function viewClinicDetail(clinicId) {
     const clinic = await fetchClinicById(clinicId);
@@ -696,21 +722,23 @@ async function _renderDoctorBookBtn(d) {
     const isClinic = d.isClinic;
     const docId = d.doctorId || d.id;
     let futureSlotCount = 0;
-    if (!isClinic) {
-        try {
-            const slots = await apiFetch('/slots/doctor/' + docId);
-            futureSlotCount = slots.filter(s => s.isActive).length;
-        } catch(e) {}
-    }
-    if (isClinic) {
-        area.innerHTML = d.available
-            ? '<button class="btn-book" onclick="openBookingModal(STATE.selectedDoctor)">📅 Book Appointment</button>'
-            : '<div class="unavailable-notice">Currently not accepting patients. Please check back later.</div>';
-        return;
-    }
+    try {
+        const slots = await apiFetch('/slots/doctor/' + docId);
+        const now = new Date();
+        slots.forEach(s => {
+            if (!s.isActive) return;
+            const [y, mo, day] = s.date.split('-').map(Number);
+            const [h, min] = s.time.split(':').map(Number);
+            const slotTime = new Date(y, mo - 1, day, h, min, 0);
+            if (slotTime <= now) return;
+            const rem = s.maxBookings - s.currentBookings;
+            if (rem > 0) futureSlotCount += rem;
+        });
+    } catch(e) {}
+
     if (futureSlotCount > 0) {
         const warning = !d.available
-            ? '<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:10px;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 14px;font-size:.82rem;color:#92400e;font-weight:600">⚠️ Not available right now — but has <strong>' + futureSlotCount + '</strong> upcoming slot' + (futureSlotCount !== 1 ? 's' : '') + '</div>'
+            ? '<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:10px;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 14px;font-size:.82rem;color:#92400e;font-weight:600">⚠️ Not available right now — but has <strong>' + futureSlotCount + '</strong> upcoming spot' + (futureSlotCount !== 1 ? 's' : '') + '</div>'
             : '';
         area.innerHTML = warning + '<button class="btn-book" onclick="openBookingModal(STATE.selectedDoctor)">📅 Book Appointment</button>';
     } else if (d.available) {
@@ -1812,7 +1840,7 @@ async function renderPatientBookings() {
     const localBookings = getAllBookings().filter(b => (b.patientId||'guest') === localPid);
     const all = [...serverBookings.map(b=>({
         id: b._id, doctorName: b.doctorName, specialization: b.specialization || b.doctorName,
-        entityName: b.hospitalName, date: b.date, time: b.time,
+        entityName: b.hospitalName || b.clinicName || '', date: b.date, time: b.time,
         reason: b.patientDescription, status: b.status,
         patientName: b.patientName, createdAt: b.createdAt,
         _serverId: b._id, image: ''

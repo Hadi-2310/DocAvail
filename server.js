@@ -490,6 +490,7 @@ app.post('/api/bookings', async (req, res) => {
         let resolvedDoctorName = 'Unknown';
         let resolvedHospitalName = 'Unknown';
         let resolvedSpecialization = '';
+        let resolvedClinicId = null;
 
         if (doctor) {
             resolvedDoctorName = doctor.name;
@@ -500,7 +501,8 @@ app.post('/api/bookings', async (req, res) => {
             if (clinic) {
                 resolvedDoctorName = clinic.doctorName;
                 resolvedSpecialization = clinic.specialization || '';
-                resolvedHospitalName = clinic.name || clinic.doctorName; // clinic name as entity name
+                resolvedHospitalName = clinic.name || clinic.doctorName;
+                resolvedClinicId = clinic.clinicId;
             }
         }
         if (hospital) resolvedHospitalName = hospital.name;
@@ -518,6 +520,7 @@ app.post('/api/bookings', async (req, res) => {
             specialization: resolvedSpecialization,
             hospitalId,
             hospitalName: resolvedHospitalName,
+            clinicId: resolvedClinicId,
             slotId,
             date: slot.date,
             time: slot.time
@@ -545,15 +548,17 @@ app.get('/api/bookings/hospital/:hospitalId', async (req, res) => {
     }
 });
 
-// GET bookings for clinic (by doctorId range belonging to that clinic)
+// GET bookings for clinic (by clinicId field or doctorId == clinicId)
 app.get('/api/bookings/clinic/:clinicId', async (req, res) => {
     try {
         const clinicId = parseInt(req.params.clinicId);
         const clinic = await Clinic.findOne({ clinicId });
         if (!clinic) return res.json([]);
-        // Clinic doctors are stored as clinicId in entityId field, or match by doctorId == clinicId
-        const bookings = await Booking.find({ doctorId: clinicId, status: { $ne: 'cancelled' } })
-            .sort({ date: 1, time: 1 });
+        // Find by clinicId field (new bookings) OR doctorId == clinicId (legacy)
+        const bookings = await Booking.find({
+            $or: [{ clinicId: clinicId }, { doctorId: clinicId }],
+            status: { $ne: 'cancelled' }
+        }).sort({ date: 1, time: 1 });
         res.json(bookings);
     } catch (error) {
         res.status(500).json({ error: error.message });
