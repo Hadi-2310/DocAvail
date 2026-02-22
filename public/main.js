@@ -327,6 +327,16 @@ async function handleClinicLogin(e) {
     }
 }
 function logoutPatient() { STATE.currentPatient = null; navigateToScreen('welcome'); }
+async function refreshHospitalDashboard() {
+    showToast('🔄 Refreshing...', '');
+    await Promise.all([refreshDashStats(), (STATE.currentDashTab === 'doctors' ? renderDashDoctors() : STATE.currentDashTab === 'slots' ? renderDashSlots() : renderDashBookings())]);
+    showToast('✅ Refreshed', 'success');
+}
+async function refreshClinicDashboard() {
+    showToast('🔄 Refreshing...', '');
+    await renderClinicDashboard();
+    showToast('✅ Refreshed', 'success');
+}
 
 // ─── FILTER PANEL ─────────────────────────────────────────
 function toggleFilterPanel(tab) {
@@ -1297,6 +1307,9 @@ async function renderDashBookings() {
           <span class="booking-id">#${b.bookingId}</span>
           <span class="booking-datetime">${b.date} at ${fmtTime12(b.time)}</span>
           <span class="booking-status-badge ${displayStatus}" style="font-size:.7rem;padding:2px 8px">${statusLabel}</span>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:3px 10px;margin-bottom:6px;font-size:.78rem;font-weight:600;color:#1d4ed8">
+          🗓 Booked Slot: ${b.date} &nbsp;•&nbsp; ${fmtTime12(b.time)}
         </div>
         <div class="booking-patient" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${b.patientName}${b.patientAge?`<span style="font-size:.78rem;color:#64748b">(Age: ${b.patientAge})</span>`:''}
