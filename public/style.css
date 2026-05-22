@@ -1000,7 +1000,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     font-weight: 600; font-size: .9rem; color: #64748b; transition: all .2s;
     font-family: var(--font);
 }
-.auth-tab.active { background: var(--blue-600); color: #fff; }
+.auth-tab.active { background: #ffffff; color: #0f172a; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 
 @media (min-width: 900px) {
     .add-slot-form { margin: 16px 40px; }
