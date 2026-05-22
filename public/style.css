@@ -1700,3 +1700,51 @@ html, body {
 @media (max-width: 480px) {
   .booking-patient-grid { grid-template-columns: 1fr; gap: 8px; }
 }
+
+/* ============================================================
+   NATIVE SMARTPHONE PERFECTION (iOS & Android Optimizations)
+   ============================================================ */
+
+/* 1. Remove ugly tap highlights on iOS and Android */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 2. Prevent overscroll/bounce effect on the main body to feel like an app */
+body {
+  overscroll-behavior-y: none;
+}
+
+/* 3. Smooth momentum scrolling for all scrollable containers */
+.modal-card, .emergency-inline-panel, .emp-body, .dashboard-list, .specialty-filter-scroll, .list-tabs {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 4. Ensure buttons and interactive elements have adequate touch targets (44px min recommended) */
+button, .auth-tab, .filter-chip, .list-tab, .dash-tab {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 5. Prevent iOS Safari from zooming in on input fields by forcing font-size to 16px */
+@media (max-width: 768px) {
+  input, select, textarea, .form-group input, .form-group select, .form-group textarea, .slot-form-row input, .slot-form-row select {
+    font-size: 16px !important;
+  }
+}
+
+/* 6. Comprehensive Safe Area Insets (Notch & Home Bar support) */
+@supports (padding-top: env(safe-area-inset-top)) {
+  /* Extend top safe area for headers */
+  .home-header, .dash-header-bar, .emergency-top-bar, .emp-banner {
+    padding-top: calc(16px + env(safe-area-inset-top)) !important;
+  }
+  
+  /* Left/Right safe areas for landscape notch */
+  .home-wrap, .hospital-dashboard, .clinic-dashboard, .modal-card, .emergency-inner {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
