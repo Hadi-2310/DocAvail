@@ -1,5 +1,5 @@
 // ============================================================
-// DocAvail — main.js
+// DocAvail main.js
 // All features merged & working:
 // English-only voice
 // Emergency INLINE on patient home (GPS + real distance + Google Maps)
@@ -12,7 +12,7 @@
 // Auto-detects: uses relative URL in production (Railway), localhost when developing
 const API_URL = '/api';
 
-// ─── STYLED CONFIRM DIALOG ────────────────────────────────
+// STYLED CONFIRM DIALOG
 let _confirmResolve = null;
 function showConfirmDialog({ title, message, okLabel = 'Confirm', okColor = '#ef4444', icon = '' }) {
     return new Promise(resolve => {
@@ -32,7 +32,7 @@ function confirmDialogResolve(result) {
     if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
 }
 
-// ─── REAL-TIME CLOCK HELPER ───────────────────────────────
+// REAL-TIME CLOCK HELPER
 function nowISO() { return new Date().toISOString(); }
 function todayStr(){
     const d=new Date();
@@ -63,7 +63,7 @@ function relativeTime(isoStr) {
     return fmtDateTime(isoStr);
 }
 
-// ─── STATE ───────────────────────────────────────────────
+// STATE
 const STATE = {
     currentScreen: 'splash',
     currentHospitalId: null,
@@ -87,7 +87,7 @@ const STATE = {
     specialistQuery: '', specialistSpecialty: 'All', specialistEntity: 'all',
 };
 
-// ─── TOAST ───────────────────────────────────────────────
+// TOAST
 function showToast(msg, type = '') {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -96,7 +96,7 @@ function showToast(msg, type = '') {
     setTimeout(() => { t.style.display = 'none'; }, 3000);
 }
 
-// ─── API HELPERS ──────────────────────────────────────────
+// API HELPERS
 async function apiFetch(path, opts = {}) {
     if (!opts.method || opts.method === 'GET') {
         opts.cache = 'no-store';
@@ -142,9 +142,9 @@ async function globalSearch(q, spec, entityType, avail) {
     try { return await apiFetch('/global-search?'+params); } catch(e) { return []; }
 }
 
-// ─── NAVIGATION ───────────────────────────────────────────
+// NAVIGATION
 function navigateToScreen(screen, data = null) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(s =>s.classList.remove('active'));
     const map = {
         'welcome':'welcome-screen','patient-login':'patient-login',
         'hospital-login':'hospital-login','clinic-login':'clinic-login',
@@ -192,8 +192,8 @@ function navigateToScreen(screen, data = null) {
     else if (screen === 'voice-assistant') { resetVoiceAssistant(); }
 }
 
-// ─── REAL-TIME POLLING ENGINE ─────────────────────────────
-// Central poll manager — starts/stops intervals as user navigates screens.
+// REAL-TIME POLLING ENGINE
+// Central poll manager starts/stops intervals as user navigates screens.
 // Each screen registers what to refresh and how often.
 const _POLL = {
     _timers: {},
@@ -206,13 +206,13 @@ const _POLL = {
         if (this._timers[key]) { clearInterval(this._timers[key]); delete this._timers[key]; }
     },
     stopAll() {
-        Object.keys(this._timers).forEach(k => this.stop(k));
+        Object.keys(this._timers).forEach(k =>this.stop(k));
     }
 };
 
 // Update the stats bar (available doctors count) without re-rendering full dashboard
 async function refreshDashStats() {
-    const stats = await fetchHospitalStats(STATE.currentHospitalId).catch(() => null);
+    const stats = await fetchHospitalStats(STATE.currentHospitalId).catch(() =>null);
     if (!stats) return;
     const td = document.getElementById('total-doctors');
     const ad = document.getElementById('available-doctors');
@@ -222,7 +222,7 @@ async function refreshDashStats() {
     if (tb) tb.textContent = stats.totalBookings || 0;
 }
 
-// ─── AUTH ─────────────────────────────────────────────────
+// AUTH
 function updatePatientGreeting() {
     const badge = document.getElementById('patient-greeting-badge');
     const wt = document.getElementById('patient-welcome-text');
@@ -336,7 +336,7 @@ async function refreshClinicDashboard() {
     showToast('Refreshed', 'success');
 }
 
-// ─── FILTER PANEL ─────────────────────────────────────────
+// FILTER PANEL
 function toggleFilterPanel(tab) {
     const p = document.getElementById('filter-panel');
     const isHidden = p.style.display === 'none';
@@ -361,13 +361,12 @@ function setSortFilter(btn) {
     document.querySelectorAll('#sort-chips .filter-sort-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active'); STATE.sortFilter = btn.dataset.val;
 }
-// ─── GPS LOCATION ─────────────────────────────────────────
+// GPS LOCATION
 function getUserLocation() {
     return new Promise((resolve) => {
         if (!navigator.geolocation) { resolve(null); return; }
-        navigator.geolocation.getCurrentPosition(
-            pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            () => resolve(null),
+        navigator.geolocation.getCurrentPosition(pos =>resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            () =>resolve(null),
             { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
         );
     });
@@ -387,14 +386,14 @@ async function applyFilters() {
         STATE.userLocation = await getUserLocation();
         if (locEl) locEl.textContent = STATE.userLocation
             ? `Location found (${STATE.userLocation.lat.toFixed(4)}, ${STATE.userLocation.lng.toFixed(4)})`
-            : 'Location unavailable — sorting by doctor count instead';
+            : 'Location unavailable sorting by doctor count instead';
     }
     renderHospitalsList();
     renderClinicsList();
     showToast('Filters applied');
 }
 
-// ─── HOSPITALS LIST ───────────────────────────────────────
+// HOSPITALS LIST
 async function renderHospitalsList() {
     const c = document.getElementById('hospitals-list');
     c.innerHTML = '<div class="loading-pulse">Loading hospitals</div>';
@@ -413,11 +412,11 @@ async function renderHospitalsList() {
                 ? (distKm < 1 ? `${Math.round(distKm*1000)} m away` : `${distKm.toFixed(1)} km away`)
                 : null };
         });
-        sorted.sort((a,b) => a.distKm - b.distKm);
+        sorted.sort((a,b) =>a.distKm - b.distKm);
     } else if (STATE.sortFilter === 'rating') {
         sorted.sort((a,b) => (b.rating||0) - (a.rating||0));
     } else if (STATE.sortFilter === 'doctorCount') {
-        sorted.sort((a,b) => b.totalDoctors - a.totalDoctors);
+        sorted.sort((a,b) =>b.totalDoctors - a.totalDoctors);
     } else {
         sorted.sort((a,b) => (b.availableCount||0) - (a.availableCount||0));
     }
@@ -430,15 +429,15 @@ async function renderHospitalsList() {
           <div class="entity-meta">
             <div class="entity-meta-item"> ${h.location}</div>
             <div class="entity-meta-item"> ${h.totalDoctors||0} Doctors</div>
-            ${h.rating?`<div class="entity-meta-item">⭐ ${h.rating}</div>`:''}
+            ${h.rating?`<div class="entity-meta-item"> ${h.rating}</div>`:''}
             ${h.distLabel?`<div class="entity-meta-item"> ${h.distLabel}</div>`:''}</div>
           <div class="avail-bar"><div class="avail-fill" style="width:${h.availabilityPercent||0}%"></div></div>
-          <div class="avail-text"><strong>${h.availableCount||0}</strong> of ${h.totalDoctors||0} available now</div></div>
+          <div class="avail-text"><strong>${h.availableCount||0}</strong>of ${h.totalDoctors||0} available now</div></div>
         <div class="entity-arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div></div>
     `).join('');
 }
 
-// ─── CLINICS LIST ─────────────────────────────────────────
+// CLINICS LIST
 async function renderClinicsList() {
     const c = document.getElementById('clinics-list');
     c.innerHTML = '<div class="loading-pulse">Loading clinics</div>';
@@ -467,7 +466,7 @@ async function renderClinicsList() {
     c.innerHTML = clinics.map(cl => {
         const futureCount = clinicFutureMap[cl.clinicId] || 0;
         const futureBadge = !cl.available && futureCount > 0
-            ? `<div class="slot-count-badge future"> ${futureCount} upcoming spot${futureCount!==1?'s':''} — tap to book</div>`
+            ? `<div class="slot-count-badge future"> ${futureCount} upcoming spot${futureCount!==1?'s':''} tap to book</div>`
             : '';
         return `
       <div class="clinic-card" onclick="viewClinicDetail(${cl.clinicId})">
@@ -480,7 +479,7 @@ async function renderClinicsList() {
             <div class="entity-meta-item"> ${cl.location}</div></div>
           <span class="avail-badge ${cl.available?'green':'red'}">${cl.available?'Available':'Unavailable'}</span>
           <div class="clinic-fee-badge"> ${cl.consultationFee}</div>
-          <div class="clinic-timings">⏰ ${cl.timings}</div>
+          <div class="clinic-timings"> ${cl.timings}</div>
           ${futureBadge}</div>
         <div class="entity-arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div></div>
     `}).join('');
@@ -500,7 +499,7 @@ async function viewClinicDetail(clinicId) {
     navigateToScreen('doctor-detail', STATE.selectedDoctor);
 }
 
-// ─── TAB SWITCHING (Patient home) ─────────────────────────
+// TAB SWITCHING (Patient home)
 function switchTab(tab) {
     ['hospitals','clinics','mybookings'].forEach(t=>{
         document.getElementById('tab-'+t).classList.toggle('active', t===tab);
@@ -512,7 +511,7 @@ function switchTab(tab) {
     if (tab==='mybookings') renderPatientBookings();
 }
 
-// ─── GLOBAL SEARCH ────────────────────────────────────────
+// GLOBAL SEARCH
 let _globalTimer;
 function handleGlobalSearch() {
     const q = document.getElementById('global-search-input').value.trim();
@@ -548,7 +547,7 @@ function openSpecialistDetail(id,type) {
     document.getElementById('global-search-results').style.display='none';
 }
 
-// ─── SPECIALIST SEARCH ────────────────────────────────────
+// SPECIALIST SEARCH
 let _specTimer;
 function searchSpecialists() { clearTimeout(_specTimer); _specTimer=setTimeout(_doSpecSearch,300); }
 async function _doSpecSearch() {
@@ -568,7 +567,7 @@ async function _doSpecSearch() {
           ${r.consultationFee?`<div style="font-size:.75rem;color:var(--green-600);font-weight:600;margin-top:3px"> ${r.consultationFee}</div>`:''}</div>
         <div style="text-align:right;flex-shrink:0">
           <span class="avail-badge ${r.available?'green':'red'}">${r.available?'Available':'Busy'}</span>
-          <div class="spec-rating" style="margin-top:4px">⭐ ${r.rating||'N/A'}</div>
+          <div class="spec-rating" style="margin-top:4px"> ${r.rating||'N/A'}</div>
           ${r.experience?`<div style="font-size:.72rem;color:var(--gray-400);margin-top:2px">${r.experience}</div>`:''}</div></div>`).join('');
 }
 function setSpecialistSpecialty(btn) {
@@ -580,7 +579,7 @@ function setSpecialistEntity(btn,type) {
     btn.classList.add('active'); STATE.specialistEntity=type; searchSpecialists();
 }
 
-// ─── DOCTORS LIST ─────────────────────────────────────────
+// DOCTORS LIST
 async function renderDoctorsList() {
     const c = document.getElementById('doctors-list');
     c.innerHTML='<div class="loading-pulse" style="grid-column:1/-1">Loading doctors</div>';
@@ -608,14 +607,14 @@ async function renderDoctorsList() {
             const slotTime = new Date(y, mo - 1, day, h, min, 0);
             if (slotTime <= now) return; // skip past slots
 
-            // Today's slots → for available badge
+            // Today's slots for available badge
             if (s.date === today) {
                 if (!slotMap[s.doctorId]) slotMap[s.doctorId] = { total: 0, filled: 0 };
                 slotMap[s.doctorId].total += s.maxBookings;
                 slotMap[s.doctorId].filled += s.currentBookings;
             }
 
-            // All future slots → for upcoming badge on unavailable doctors
+            // All future slots for upcoming badge on unavailable doctors
             const rem = s.maxBookings - s.currentBookings;
             if (rem > 0) {
                 futureSlotMap[s.doctorId] = (futureSlotMap[s.doctorId] || 0) + rem;
@@ -638,7 +637,7 @@ async function renderDoctorsList() {
         } else {
             // Unavailable doctor: show future slot count if any
             if (futureCount > 0) {
-                slotBadge = `<div class="slot-count-badge future"> ${futureCount} upcoming slot${futureCount!==1?'s':''} — tap to book</div>`;
+                slotBadge = `<div class="slot-count-badge future"> ${futureCount} upcoming slot${futureCount!==1?'s':''} tap to book</div>`;
             }
         }
         return `
@@ -648,7 +647,7 @@ async function renderDoctorsList() {
           <h3>${d.name}</h3>
           <span class="specialization-tag">${d.specialization}</span>
           <div class="doctor-meta">
-            <div class="meta-row">⭐ ${d.rating} • ${d.experience}</div>
+            <div class="meta-row"> ${d.rating} ${d.experience}</div>
             <div class="meta-row" style="font-size:.7rem">${d.hospital}</div></div>
           <span class="avail-badge ${d.available?'green':'red'}">${d.available?'Available':'Busy'}</span>
           ${slotBadge}</div></div>`;}).join('');
@@ -682,17 +681,17 @@ function renderDoctorDetail() {
           <div>
             <h2 class="detail-doc-name">${d.name}</h2>
             <span class="specialization-tag">${d.specialization}</span><br>
-            <span class="avail-badge ${d.available?'green':'red'}" style="margin-top:8px;display:inline-flex">${d.available?'● Available Now':'● Not Available'}</span></div></div>
+            <span class="avail-badge ${d.available?'green':'red'}" style="margin-top:8px;display:inline-flex">${d.available?'Available Now':'Not Available'}</span></div></div>
         <div class="detail-section">
           <h3>${isClinic?'Clinic Information':'Hospital Information'}</h3>
           <div class="detail-grid">
             <div class="detail-info-item"><div><div class="detail-info-label">${isClinic?'Clinic':'Hospital'}</div><div class="detail-info-val">${d.hospital}</div></div></div>
-            <div class="detail-info-item">⭐<div><div class="detail-info-label">Rating</div><div class="detail-info-val">${d.rating}</div></div></div>
+            <div class="detail-info-item"><div><div class="detail-info-label">Rating</div><div class="detail-info-val">${d.rating}</div></div></div>
             <div class="detail-info-item"><div><div class="detail-info-label">Experience</div><div class="detail-info-val">${d.experience||'N/A'}</div></div></div>
             <div class="detail-info-item"><div><div class="detail-info-label">Gender</div><div class="detail-info-val">${d.gender||'N/A'}</div></div></div>
             ${isClinic&&d.consultationFee?`
             <div class="detail-info-item"><div><div class="detail-info-label">Fee</div><div class="detail-info-val">${d.consultationFee}</div></div></div>
-            <div class="detail-info-item">⏰<div><div class="detail-info-label">Timings</div><div class="detail-info-val">${d.timings}</div></div></div>`:''}</div></div>
+            <div class="detail-info-item"><div><div class="detail-info-label">Timings</div><div class="detail-info-val">${d.timings}</div></div></div>`:''}</div></div>
         <div class="detail-section">
           <h3>Contact</h3>
           <div class="detail-grid">
@@ -723,9 +722,9 @@ async function _renderDoctorBookBtn(d) {
     } catch(e) {}
 
     if (futureSlotCount > 0) {
-        // Has future slots — show booking button regardless of current availability (works for both hospitals and clinics)
+        // Has future slots show booking button regardless of current availability (works for both hospitals and clinics)
         const warning = !d.available
-            ? '<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:10px;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 14px;font-size:.82rem;color:#92400e;font-weight:600">Not available right now — but has <strong>' + futureSlotCount + '</strong> upcoming spot' + (futureSlotCount !== 1 ? 's' : '') + '</div>'
+            ? '<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:10px;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 14px;font-size:.82rem;color:#92400e;font-weight:600">Not available right now but has <strong>' + futureSlotCount + '</strong>upcoming spot' + (futureSlotCount !== 1 ? 's' : '') + '</div>'
             : '';
         area.innerHTML = warning + '<button class="btn-book" onclick="openBookingModal(STATE.selectedDoctor)">Book Appointment</button>';
     } else if (d.available) {
@@ -739,7 +738,7 @@ async function _renderDoctorBookBtn(d) {
     }
 }
 
-// ─── INLINE GPS EMERGENCY ─────────────────────────────────
+// INLINE GPS EMERGENCY
 async function handleGeoEmergency() {
     const panel = document.getElementById('emergency-inline-panel');
     const locBar = document.getElementById('emp-loc-bar');
@@ -756,21 +755,20 @@ async function handleGeoEmergency() {
     panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
 
     if (!navigator.geolocation) {
-        locBar.className='emp-loc-bar error'; locBar.textContent='GPS not supported — showing all hospitals';
+        locBar.className='emp-loc-bar error'; locBar.textContent='GPS not supported showing all hospitals';
         await _loadEmergencyData(null, null);
         return;
     }
-    navigator.geolocation.getCurrentPosition(
-        async (pos) => {
+    navigator.geolocation.getCurrentPosition(async (pos) => {
             const { latitude:lat, longitude:lng, accuracy } = pos.coords;
-            locBar.className='emp-loc-bar'; locBar.innerHTML = `Location detected — ${lat.toFixed(4)}°, ${lng.toFixed(4)}° &nbsp;(±${Math.round(accuracy)}m) &nbsp;<button onclick="openMaps(${lat},${lng},'My Location')" style="background:#dcfce7;border:1.5px solid #86efac;color:#166534;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:.74rem;font-weight:700;">View on Map</button>`;
+            locBar.className='emp-loc-bar'; locBar.innerHTML = `Location detected ${lat.toFixed(4)}, ${lng.toFixed(4)} &nbsp;(${Math.round(accuracy)}m) &nbsp;<button onclick="openMaps(${lat},${lng},'My Location')" style="background:#dcfce7;border:1.5px solid #86efac;color:#166534;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:.74rem;font-weight:700;">View on Map</button>`;
             await _loadEmergencyData(lat, lng);
         },
         (err) => {
             let msg = ' ';
-            if (err.code===1) msg += 'Location denied — showing all hospitals';
-            else if (err.code===2) msg += 'Location unavailable — showing all hospitals';
-            else msg += 'Location timeout — showing all hospitals';
+            if (err.code===1) msg += 'Location denied showing all hospitals';
+            else if (err.code===2) msg += 'Location unavailable showing all hospitals';
+            else msg += 'Location timeout showing all hospitals';
             locBar.className='emp-loc-bar error'; locBar.textContent = msg;
             _loadEmergencyData(null, null);
         },
@@ -824,7 +822,7 @@ function _renderEmergencyResults(data, userLat, userLng) {
             <div class="emp-card-icon-row">
               <span class="emp-card-type-badge doc">Doctor</span></div>
             <div class="emp-card-name">${d.name}</div>
-            <div class="emp-card-detail">${d.specialization} &nbsp;·&nbsp; ${d.hospital}</div>
+            <div class="emp-card-detail">${d.specialization} &nbsp;&nbsp; ${d.hospital}</div>
             <div class="emp-btn-row">
               ${d.phone ? `<button class="emp-call-btn" onclick="window.location.href='tel:${d.phone}'">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.6 3.47 2 2 0 0 1 3.56 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.82a16 16 0 0 0 6.29 6.29l.82-.82a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>Call</button>` : ''}</div></div>`).join('');
@@ -833,8 +831,8 @@ function _renderEmergencyResults(data, userLat, userLng) {
 
     html += `<div class="emp-section-title">Emergency Hotlines</div>
       <div class="emp-hotlines">
-        <button onclick="window.location.href='tel:112'"> 112 — Emergency</button>
-        <button onclick="window.location.href='tel:108'"> 108 — Ambulance</button></div>`;
+        <button onclick="window.location.href='tel:112'"> 112 Emergency</button>
+        <button onclick="window.location.href='tel:108'"> 108 Ambulance</button></div>`;
 
     if (userLat && userLng) {
         html += `<div class="emp-my-loc" style="display:none">Your location: ${userLat.toFixed(5)}, ${userLng.toFixed(5)}</div>`;
@@ -852,7 +850,7 @@ function openMaps(lat, lng, name) {
     window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
 }
 
-// ─── VOICE ASSISTANT (English only) ──────────────────────
+// VOICE ASSISTANT (English only)
 function killSpeech() { if (window.speechSynthesis) window.speechSynthesis.cancel(); }
 function resetVoiceAssistant() {
     killSpeech();
@@ -875,7 +873,7 @@ function startVoiceListening() {
     if (!SR) { document.getElementById('voice-status').textContent='Voice not supported. Use Chrome or Edge.'; return; }
     if (STATE.recognition) { try{STATE.recognition.abort();}catch(e){} STATE.recognition=null; }
     const r = new SR();
-    // FIX: continuous=false fires onend naturally when user stops → no restart loop on mobile
+    // FIX: continuous=false fires onend naturally when user stops no restart loop on mobile
     // FIX: maxAlternatives=1 reduces processing overhead
     r.continuous=false; r.interimResults=true; r.maxAlternatives=1;
     r.lang='en-US';
@@ -898,7 +896,7 @@ function startVoiceListening() {
         }
         STATE._finalTranscript+=final;
         document.getElementById('voice-transcript').textContent=(STATE._finalTranscript+interim).trim()||'...';
-        // FIX: reduced from 1200ms → 400ms for snappier response
+        // FIX: reduced from 1200ms 400ms for snappier response
         if (final.trim().length>0) {
             clearTimeout(STATE._vTimer);
             STATE._vTimer=setTimeout(()=>{
@@ -951,7 +949,7 @@ async function processVoiceQuery(transcript) {
     document.getElementById('voice-transcript').textContent = transcript;
     const lower = transcript.toLowerCase().trim();
 
-    // ── Emergency shortcut ────────────────────────────────────
+    // Emergency shortcut
     if (/\b(emergency|urgent|ambulance|help me)\b/.test(lower)) {
         document.getElementById('voice-response-box').style.display = 'block';
         document.getElementById('voice-response').innerHTML = '<strong>Opening Emergency GPS mode...</strong>';
@@ -959,7 +957,7 @@ async function processVoiceQuery(transcript) {
         return;
     }
 
-    // ── Step 1: Use cached hospitals/clinics — only fetch if not yet loaded ──
+    // Step 1: Use cached hospitals/clinics only fetch if not yet loaded
     // FIX: avoids re-fetching entire DB on every voice query
     let hospitals = STATE.hospitals;
     let clinics = STATE.clinics;
@@ -978,7 +976,7 @@ async function processVoiceQuery(transcript) {
 
     // Extract meaningful words from a string (4+ chars, skip generic words like "hospital","clinic","doctor")
     const STOP = new Set(['hospital','clinic','doctor','doctors','medical','centre','center','care','health','home','the','and','for']);
-    const words = str => str.toLowerCase().replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(w => w.length >= 3 && !STOP.has(w));
+    const words = str =>str.toLowerCase().replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(w =>w.length >= 3 && !STOP.has(w));
     const spokenWords = words(lower);
 
     // Score: count how many meaningful name-words appear in what the user said
@@ -987,10 +985,10 @@ async function processVoiceQuery(transcript) {
         const nameWords = words(h.name);
         if (!nameWords.length) continue;
         // Check each name word appears in what was spoken
-        const score = nameWords.filter(w => lower.includes(w)).length;
+        const score = nameWords.filter(w =>lower.includes(w)).length;
         // Must match majority of meaningful name words to avoid false positives
         const threshold = Math.ceil(nameWords.length * 0.6);
-        if (score >= threshold && score > bestHospScore) {
+        if (score >= threshold && score >bestHospScore) {
             bestHospScore = score;
             hospitalMatch = h;
         }
@@ -998,9 +996,9 @@ async function processVoiceQuery(transcript) {
     for (const cl of (clinics || [])) {
         const nameWords = words(cl.name + ' ' + (cl.doctorName||''));
         if (!nameWords.length) continue;
-        const score = nameWords.filter(w => lower.includes(w)).length;
+        const score = nameWords.filter(w =>lower.includes(w)).length;
         const threshold = Math.ceil(nameWords.length * 0.6);
-        if (score >= threshold && score > bestClinicScore) {
+        if (score >= threshold && score >bestClinicScore) {
             bestClinicScore = score;
             clinicMatch = cl;
         }
@@ -1008,25 +1006,25 @@ async function processVoiceQuery(transcript) {
 
     // If both matched, keep the higher-scoring one
     if (hospitalMatch && clinicMatch) {
-        if (bestClinicScore > bestHospScore) hospitalMatch = null; else clinicMatch = null;
+        if (bestClinicScore >bestHospScore) hospitalMatch = null; else clinicMatch = null;
     }
 
-    // ── Step 2: Navigate instantly — no extra API call needed ──
+    // Step 2: Navigate instantly no extra API call needed
     const respBox = document.getElementById('voice-response-box');
     const respEl = document.getElementById('voice-response');
     respBox.style.display = 'block';
 
     if (hospitalMatch) {
-        respEl.innerHTML = `Found <strong>${hospitalMatch.name}</strong> — opening doctors list...`;
+        respEl.innerHTML = `Found <strong>${hospitalMatch.name}</strong>opening doctors list...`;
         document.getElementById('voice-status').textContent = 'Navigating...';
-        // FIX: reduced delay 800ms → 300ms
-        setTimeout(() => navigateToScreen('doctors-list-screen', hospitalMatch.id || hospitalMatch.hospitalId), 300);
+        // FIX: reduced delay 800ms 300ms
+        setTimeout(() =>navigateToScreen('doctors-list-screen', hospitalMatch.id || hospitalMatch.hospitalId), 300);
         document.getElementById('voice-results').style.display = 'none';
         return;
     }
 
     if (clinicMatch) {
-        respEl.innerHTML = `Found <strong>${clinicMatch.name}</strong> — opening details...`;
+        respEl.innerHTML = `Found <strong>${clinicMatch.name}</strong>opening details...`;
         document.getElementById('voice-status').textContent = 'Opening...';
         const clinicAsDoctor = {
             isClinic: true, doctorId: clinicMatch.clinicId, id: clinicMatch.clinicId,
@@ -1037,12 +1035,12 @@ async function processVoiceQuery(transcript) {
             email: clinicMatch.email, consultationFee: clinicMatch.consultationFee,
             timings: clinicMatch.timings
         };
-        setTimeout(() => navigateToScreen('doctor-detail', clinicAsDoctor), 300);
+        setTimeout(() =>navigateToScreen('doctor-detail', clinicAsDoctor), 300);
         document.getElementById('voice-results').style.display = 'none';
         return;
     }
 
-    // ── Step 3: Match specialty ───────────────────────────────
+    // Step 3: Match specialty
     const specMap = [
         ['Cardiologist', ['heart','cardiac','cardiology','cardiologist','chest pain','palpitation','blood pressure','hypertension']],
         ['Pediatrician', ['pediatric','paediatric','child','children','baby','infant','kids','my son','my daughter']],
@@ -1058,7 +1056,7 @@ async function processVoiceQuery(transcript) {
 
     let spec = '';
     for (const [s, kws] of specMap) {
-        if (kws.some(k => lower.includes(k))) { spec = s; break; }
+        if (kws.some(k =>lower.includes(k))) { spec = s; break; }
     }
 
     const avail = /\b(available|free|open now|seeing patients)\b/.test(lower);
@@ -1071,8 +1069,8 @@ async function processVoiceQuery(transcript) {
         return;
     }
 
-    const av = results.filter(r => r.available).length;
-    respEl.innerHTML = `Found <strong>${results.length}</strong> doctor${results.length!==1?'s':''}${spec?' — <strong>'+spec+'</strong>':''}. <strong>${av}</strong> available now.`;
+    const av = results.filter(r =>r.available).length;
+    respEl.innerHTML = `Found <strong>${results.length}</strong>doctor${results.length!==1?'s':''}${spec?' <strong>'+spec+'</strong>':''}. <strong>${av}</strong>available now.`;
     document.getElementById('voice-status').textContent = 'Tap to search again';
 
     const rc = document.getElementById('voice-results');
@@ -1093,7 +1091,7 @@ function startVoiceWithQuery(query) {
     processVoiceQuery(query);
 }
 
-// ─── HOSPITAL DASHBOARD ───────────────────────────────────
+// HOSPITAL DASHBOARD
 async function renderHospitalDashboard() {
     const id=STATE.currentHospitalId;
     let hosp=STATE.hospitals.find(h=>h.id===id);
@@ -1151,12 +1149,12 @@ async function toggleDoctorDB(id) {
     } catch(e){showToast('Error updating','error');}
 }
 
-// ─── SLOT MANAGEMENT (with edit) ──────────────────────────
+// SLOT MANAGEMENT (with edit)
 async function renderDashSlots() {
     const hId=STATE.currentHospitalId;
     const docs=await fetchDoctorsByHospital(hId);
     const sel=document.getElementById('slot-doctor-select');
-    sel.innerHTML=docs.map(d=>`<option value="${d.doctorId}">${d.name} – ${d.specialization}</option>`).join('');
+    sel.innerHTML=docs.map(d=>`<option value="${d.doctorId}">${d.name} ${d.specialization}</option>`).join('');
     const today=todayStr();
     document.getElementById('slot-date-input').min=today;
     document.getElementById('slot-date-input').value=today;
@@ -1181,7 +1179,7 @@ async function renderDashSlots() {
             const totalBooked=slot.currentBookings;
             html+=`<div class="slot-manage-row">
               <div class="slot-info">
-                <div class="slot-date">${dateLabel} — ${fmtTime12(slot.time)}</div>
+                <div class="slot-date">${dateLabel} ${fmtTime12(slot.time)}</div>
                 <div class="slot-meta">${slot.isActive?'Active':'Expired'}</div></div>
               <span class="slot-fill">${totalBooked}/${slot.maxBookings} booked</span>
               <button class="btn-edit-slot" onclick="openEditSlotModal('${slot._id}','${slot.date}','${slot.time}',${slot.maxBookings})">Edit</button>
@@ -1231,8 +1229,8 @@ async function saveEditSlot() {
     } catch(e){showToast('Connection error.','error');}
 }
 
-// ─── BOOKINGS DASHBOARD ───────────────────────────────────
-// Helper: returns 'completed' if confirmed but appointment time has passed
+// BOOKINGS DASHBOARD
+// Helper: returns 'completed'if confirmed but appointment time has passed
 function getBookingDisplayStatus(b) {
     const status = b.status || 'confirmed';
     if (status === 'cancelled') return 'cancelled';
@@ -1263,11 +1261,11 @@ async function renderDashBookings() {
           <span class="booking-id">#${b.bookingId}</span>
           <span class="booking-datetime">${b.date} at ${fmtTime12(b.time)}</span>
           <span class="booking-status-badge ${displayStatus}" style="font-size:.7rem;padding:2px 8px">${statusLabel}</span></div>
-        <div style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:3px 10px;margin-bottom:6px;font-size:.78rem;font-weight:600;color:#1d4ed8">Booked Slot: ${b.date} &nbsp;•&nbsp; ${fmtTime12(b.time)}</div>
+        <div style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:3px 10px;margin-bottom:6px;font-size:.78rem;font-weight:600;color:#1d4ed8">Booked Slot: ${b.date} &nbsp;&nbsp; ${fmtTime12(b.time)}</div>
         <div class="booking-patient" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${b.patientName}${b.patientAge?`<span style="font-size:.78rem;color:#64748b">(Age: ${b.patientAge})</span>`:''}
           <button onclick="showPatientHistory('${b.patientName}','${b.patientId||''}')" style="font-size:.7rem;padding:2px 8px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600">History</button></div>
-        <div class="booking-details"> ${b.patientContact||'—'}</div>
+        <div class="booking-details"> ${b.patientContact||''}</div>
         <div class="booking-details"> ${b.doctorName}</div>
         ${b.patientDescription?`<div class="booking-details" style="font-style:italic"> ${b.patientDescription}</div>`:''}
         ${!isCancelled && !isCompleted ? `<div style="display:flex;justify-content:flex-end;margin-top:8px">
@@ -1288,7 +1286,7 @@ async function clearHospitalBookingHistory() {
         const bookings = await fetchBookingsForHospital(STATE.currentHospitalId);
         const clearable = bookings.filter(isBookingClearable);
         if (!clearable.length) { showToast('No past or cancelled bookings to clear', ''); return; }
-        await Promise.all(clearable.map(b => fetch(`${API_URL}/bookings/${b._id}/hard`, { method: 'DELETE' })));
+        await Promise.all(clearable.map(b =>fetch(`${API_URL}/bookings/${b._id}/hard`, { method: 'DELETE' })));
     } catch(e) {}
     renderDashBookings();
     showToast('Booking history cleared', 'success');
@@ -1300,7 +1298,7 @@ async function clearClinicBookingHistory() {
         const bookings = await apiFetch('/bookings/clinic/' + STATE.currentClinicId);
         const clearable = bookings.filter(isBookingClearable);
         if (!clearable.length) { showToast('No past or cancelled bookings to clear', ''); return; }
-        await Promise.all(clearable.map(b => fetch(`${API_URL}/bookings/${b._id}/hard`, { method: 'DELETE' })));
+        await Promise.all(clearable.map(b =>fetch(`${API_URL}/bookings/${b._id}/hard`, { method: 'DELETE' })));
     } catch(e) {}
     // Also clear local fallback bookings for this clinic (only clearable ones)
     const now = new Date();
@@ -1313,7 +1311,7 @@ async function clearClinicBookingHistory() {
     showToast('Booking history cleared', 'success');
 }
 
-// ─── CLINIC DASHBOARD ─────────────────────────────────────
+// CLINIC DASHBOARD
 async function renderClinicDashboard() {
     const id=STATE.currentClinicId;
     const clinic=await fetchClinicById(id);
@@ -1334,9 +1332,9 @@ async function renderClinicDashboard() {
             <img src="${clinic.image||'https://i.pravatar.cc/150?img=50'}" class="clinic-profile-img" alt="${clinic.doctorName}">
             <div class="clinic-profile-info">
               <h3>${clinic.doctorName}</h3>
-              <p> ${clinic.specialization}</p><p> ${clinic.address}</p><p>⏰ ${clinic.timings}</p></div></div>
+              <p> ${clinic.specialization}</p><p> ${clinic.address}</p><p> ${clinic.timings}</p></div></div>
           <div class="clinic-stats-mini">
-            <div class="clinic-stat-item"><span class="clinic-stat-num">⭐ ${clinic.rating}</span><span class="clinic-stat-lbl">Rating</span></div>
+            <div class="clinic-stat-item"><span class="clinic-stat-num"> ${clinic.rating}</span><span class="clinic-stat-lbl">Rating</span></div>
             <div class="clinic-stat-item"><span class="clinic-stat-num">${clinic.experience||'N/A'}</span><span class="clinic-stat-lbl">Experience</span></div>
             <div class="clinic-stat-item"><span class="clinic-stat-num">${clinic.consultationFee}</span><span class="clinic-stat-lbl">Fee</span></div></div></div>
         <div class="clinic-avail-toggle-wrap">
@@ -1373,7 +1371,7 @@ async function toggleClinicAvailability(id) {
     }catch(e){showToast('Error','error');}
 }
 
-// ─── CLINIC SLOT MANAGEMENT ───────────────────────────────
+// CLINIC SLOT MANAGEMENT
 async function renderClinicSlots(clinicId) {
     const clinic=await fetchClinicById(clinicId);
     if(!clinic) return;
@@ -1386,7 +1384,7 @@ async function renderClinicSlots(clinicId) {
         const dateLabel=d.toLocaleDateString('en-IN',{weekday:'short',month:'short',day:'numeric'});
         return `<div class="slot-manage-row">
           <div class="slot-info">
-            <div class="slot-date">${dateLabel} — ${fmtTime12(slot.time)}</div>
+            <div class="slot-date">${dateLabel} ${fmtTime12(slot.time)}</div>
             <div class="slot-meta">${slot.isActive?'Active':'Expired'}</div></div>
           <span class="slot-fill">${slot.currentBookings}/${slot.maxBookings} booked</span>
           <button class="btn-edit-slot" onclick="openEditSlotModal('${slot._id}','${slot.date}','${slot.time}',${slot.maxBookings})">Edit</button>
@@ -1422,7 +1420,7 @@ function switchClinicTab(tab) {
     if(tab==='bookings') renderBookingsForClinic(STATE.currentClinicId);
 }
 
-// ─── DOCTOR CRUD ──────────────────────────────────────────
+// DOCTOR CRUD
 function showAddDoctorModal() {
     document.getElementById('modal-title').textContent='Add New Doctor';
     document.getElementById('doctor-form').reset();
@@ -1503,7 +1501,7 @@ window.onclick=(e)=>{
     if(e.target===document.getElementById('edit-slot-modal'))closeEditSlotModal();
 };
 
-// ─── BOOKING SYSTEM ───────────────────────────────────────
+// BOOKING SYSTEM
 const BOOKINGS_KEY='docavail_bookings';
 const HIDDEN_BOOKINGS_KEY='docavail_hidden_bookings';
 // Returns true if a booking can be cleared (cancelled OR appointment time has passed)
@@ -1529,14 +1527,14 @@ async function openBookingModal(doctor) {
     // Require patient login before booking
     if (!STATE.currentPatient) {
         showToast('Please log in to book an appointment', 'error');
-        setTimeout(() => navigateToScreen('patient-login'), 600);
+        setTimeout(() =>navigateToScreen('patient-login'), 600);
         return;
     }
     BSTATE.doctor=doctor; BSTATE.selectedDate=null; BSTATE.selectedTime=null; BSTATE.selectedTime24=null; BSTATE.selectedSlotId=null;
     document.getElementById('booking-doctor-preview').innerHTML=`
       <img src="${doctor.image||'https://i.pravatar.cc/150?img=20'}" alt="${doctor.name}" onerror="this.src='https://i.pravatar.cc/150?img=20'" style="width:54px;height:54px;border-radius:12px;object-fit:cover;flex-shrink:0">
-      <div><h4>${doctor.name}</h4><p>${doctor.specialization} • ${doctor.hospital||''}</p></div>
-      <span class="avail-badge green">● Available</span>`;
+      <div><h4>${doctor.name}</h4><p>${doctor.specialization} ${doctor.hospital||''}</p></div>
+      <span class="avail-badge green">Available</span>`;
     const pn=document.getElementById('booking-patient-name'), pp=document.getElementById('booking-patient-phone');
     if(pn&&STATE.currentPatient) pn.value=STATE.currentPatient.name||'';
     if(pp&&STATE.currentPatient) pp.value=STATE.currentPatient.phone||'';
@@ -1555,16 +1553,16 @@ async function openBookingModal(doctor) {
                 const [y, mo, day] = b.date.split('-').map(Number);
                 const [h, min] = (b.time || '00:00').split(':').map(Number);
                 // Only warn about bookings whose slot time is still in the future
-                return new Date(y, mo - 1, day, h, min, 0) > now;
+                return new Date(y, mo - 1, day, h, min, 0) >now;
             });
             if (upcomingBooked.length && dupWarn) {
-                const dates = upcomingBooked.map(b => b.date).join(', ');
+                const dates = upcomingBooked.map(b =>b.date).join(', ');
                 dupWarn.textContent = `You already have ${upcomingBooked.length} upcoming booking(s) with this doctor on: ${dates}`;
                 dupWarn.style.display = 'block';
             }
         } catch(e) {}
     }
-    // Date grid – build next 14 days, load slots to highlight days that have availability
+    // Date grid build next 14 days, load slots to highlight days that have availability
     const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const now=new Date();
@@ -1588,7 +1586,7 @@ async function openBookingModal(doctor) {
           <span class="day-num">${d.getDate()}</span>
           <span style="font-size:.6rem;opacity:.7">${months[d.getMonth()]}</span>
           ${hasSlots?`<span style="font-size:.55rem;color:#10b981;font-weight:700">OPEN</span>`:
-                     `<span style="font-size:.55rem;opacity:.5">–</span>`}</button>`;
+                     `<span style="font-size:.55rem;opacity:.5"></span>`}</button>`;
     }
     document.getElementById('booking-date-grid').innerHTML=dhtml;
     const startDate=firstAvailIdx>=0
@@ -1674,20 +1672,20 @@ async function confirmBooking() {
     const doctor = BSTATE.doctor;
     const patientName = document.getElementById('booking-patient-name')?.value.trim() || STATE.currentPatient?.name || '';
     const patientPhone = document.getElementById('booking-patient-phone')?.value.trim() || STATE.currentPatient?.phone || '';
-    // ── Validation ─────────────────────────────────────────────────────────
+    // Validation
     if (!patientName || patientName.length < 2) {
         showToast('Please enter your full name (at least 2 characters)', 'error'); return;
     }
     if (patientPhone && !/^[0-9+\s\-()]{7,15}$/.test(patientPhone)) {
         showToast('Please enter a valid phone number', 'error'); return;
     }
-    // ── End validation ──────────────────────────────────────────────────────
+    // End validation
     const btn = document.getElementById('confirm-booking-btn');
     btn.disabled = true;
     btn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 0.8s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Booking...</span>';
 
     try {
-        // ── Duplicate booking check ───────────────────────────────────────────
+        // Duplicate booking check
         const pid = STATE.currentPatient?.id;
         if (pid) {
             let existingBookings = [];
@@ -1704,7 +1702,7 @@ async function confirmBooking() {
                 const [y, mo, day] = b.date.split('-').map(Number);
                 const [h, min] = (b.time || '00:00').split(':').map(Number);
                 const slotTime = new Date(y, mo - 1, day, h, min, 0);
-                return slotTime > now;
+                return slotTime >now;
             });
             if (duplicate) {
                 showToast(`You already have a booking for this exact time slot with ${doctor.name}. Please choose a different time.`, 'error');
@@ -1712,7 +1710,7 @@ async function confirmBooking() {
                 return;
             }
         }
-        // ── End duplicate check ───────────────────────────────────────────────
+        // End duplicate check
 
         const isClinic = !!doctor.isClinic;
         const payload = {
@@ -1725,19 +1723,18 @@ async function confirmBooking() {
             // For clinics: store clinicId as doctorId (already is) and hospitalId as 0
             // The /bookings/clinic/:id route finds by doctorId == clinicId
             // Resolve hospitalId with multiple fallbacks to ensure it's never 0 for hospital doctors
-            hospitalId: isClinic ? 0 : (
-                doctor.hospitalId ||
+            hospitalId: isClinic ? 0 : (doctor.hospitalId ||
                 doctor.hospital_id ||
                 STATE.currentHospitalId ||
                 STATE.selectedHospitalId ||
                 // Last resort: look up from slots cache
-                (() => { try { const s = BSTATE._slotsCache?.find(sl => sl._id === BSTATE.selectedSlotId); return s?.hospitalId || 0; } catch(e) { return 0; } })()
+                (() => { try { const s = BSTATE._slotsCache?.find(sl =>sl._id === BSTATE.selectedSlotId); return s?.hospitalId || 0; } catch(e) { return 0; } })()
             ),
             slotId: BSTATE.selectedSlotId
         };
 
         if (!payload.slotId) {
-            // No server slot selected — fallback to local save (clinic without slots)
+            // No server slot selected fallback to local save (clinic without slots)
             const booking = {
                 id: 'BK'+Date.now(),
                 patientId: STATE.currentPatient?.id || STATE.currentPatient?.email || 'guest',
@@ -1808,8 +1805,8 @@ async function renderPatientBookings() {
     if (!all.length) { c.innerHTML = header + `<div class="no-bookings-empty">
         <div class="empty-state-mark">EMPTY</div>
         <h3 style="font-weight:700;color:var(--dark);margin-bottom:8px">No appointments yet</h3>
-        <p style="color:var(--gray-400);font-size:.88rem;max-width:240px;margin:0 auto;line-height:1.5">Browse hospitals or clinics and tap <strong>Book Appointment</strong> to get started.</p>
-        <button onclick="switchTab('hospitals')" style="margin-top:18px;padding:10px 24px;background:var(--primary);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:.9rem">Browse Hospitals →</button></div>`; return; }
+        <p style="color:var(--gray-400);font-size:.88rem;max-width:240px;margin:0 auto;line-height:1.5">Browse hospitals or clinics and tap <strong>Book Appointment</strong>to get started.</p>
+        <button onclick="switchTab('hospitals')" style="margin-top:18px;padding:10px 24px;background:var(--primary);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:.9rem">Browse Hospitals</button></div>`; return; }
     // Sort by appointment date ascending (soonest first), cancelled/past at bottom
     const now = new Date();
     const sorted = [...all].sort((a, b) => {
@@ -1817,7 +1814,7 @@ async function renderPatientBookings() {
         if (isPastA !== isPastB) return isPastA ? 1 : -1;
         return new Date(a.date + 'T' + (a.time||'00:00')) - new Date(b.date + 'T' + (b.time||'00:00'));
     });
-    c.innerHTML = header + sorted.map(b => renderBookingCard(b, 'patient')).join('');
+    c.innerHTML = header + sorted.map(b =>renderBookingCard(b, 'patient')).join('');
 }
 async function clearPatientBookingHistory() {
     const ok = await showConfirmDialog({ title: 'Clear Booking History', message: 'Clears cancelled and past bookings. Active upcoming bookings will not be removed.', okLabel: 'Clear History', okColor: '#ef4444', icon: '' });
@@ -1830,7 +1827,7 @@ async function clearPatientBookingHistory() {
             if (!clearable.length && !getAllBookings().filter(b => (b.patientId || 'guest') === (pid || 'guest') && isBookingClearable(b)).length) {
                 showToast('No past or cancelled bookings to clear', ''); return;
             }
-            await Promise.all(clearable.map(b => fetch(`${API_URL}/bookings/${b._id}/hard`, { method: 'DELETE' })));
+            await Promise.all(clearable.map(b =>fetch(`${API_URL}/bookings/${b._id}/hard`, { method: 'DELETE' })));
         } catch(e) {}
     }
     // Clear only clearable localStorage bookings for this patient
@@ -1850,7 +1847,7 @@ async function renderBookingsForClinic(clinicId) {
     listEl.innerHTML = '<div class="no-bookings-msg" style="color:#94a3b8">Loading...</div>';
     let bookings = [];
     try { bookings = await apiFetch('/bookings/clinic/' + clinicId); } catch(e) {}
-    const active = bookings.filter(b => b.status !== 'cancelled');
+    const active = bookings.filter(b =>b.status !== 'cancelled');
     if (countEl) countEl.textContent = active.length;
     if (!bookings.length) { listEl.innerHTML = '<div class="no-bookings-msg">No bookings yet</div>'; return; }
     listEl.innerHTML = bookings.map(b => {
@@ -1868,7 +1865,7 @@ async function renderBookingsForClinic(clinicId) {
         <div class="booking-patient" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${b.patientName}
           <button onclick="showPatientHistory('${b.patientName}','${b.patientId||''}')" style="font-size:.7rem;padding:2px 8px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600">History</button></div>
-        <div class="booking-details"> ${b.patientContact||'—'}</div>
+        <div class="booking-details"> ${b.patientContact||''}</div>
         ${b.patientDescription?`<div class="booking-details" style="font-style:italic"> ${b.patientDescription}</div>`:''}
         ${!isCancelled && !isCompleted ? `<div style="display:flex;justify-content:flex-end;margin-top:8px">
           <button class="btn-cancel-booking" onclick="cancelServerBooking('${b._id}')">Cancel</button></div>` : ''}</div>`;
@@ -1890,7 +1887,7 @@ function renderBookingCard(b, context='patient') {
     const [sy, smo, sdy] = (b.date || '2000-01-01').split('-').map(Number);
     const apptDatetime = new Date(sy, smo - 1, sdy, sh, sm, 0, 0);
     const isPast = apptDatetime < new Date();
-    // Use display status: shows 'completed' for past confirmed bookings
+    // Use display status: shows 'completed'for past confirmed bookings
     const displayStatus = getBookingDisplayStatus(b);
     const isCompleted = displayStatus === 'completed';
     const showRemove = status === 'cancelled' || isPast;
@@ -1928,14 +1925,14 @@ function renderBookingCard(b, context='patient') {
             ? `<button class="booking-remove-btn" onclick="${removeFn}">Remove</button>`
             : ''}</div></div>`;
 }
-// ── RESCHEDULE ──────────────────────────────────────────────────────────────
+// RESCHEDULE
 async function openRescheduleModal(serverId) {
     BSTATE.rescheduleBookingId = serverId;
     // Fetch booking details to know which doctor
     let booking = null;
     try {
         const all = await apiFetch('/bookings/patient/' + STATE.currentPatient.id);
-        booking = all.find(b => b._id === serverId);
+        booking = all.find(b =>b._id === serverId);
     } catch(e) {}
     if (!booking) { showToast('Could not load booking', 'error'); return; }
     // Reuse booking modal but in reschedule mode
@@ -1951,7 +1948,7 @@ async function openRescheduleModal(serverId) {
       <div><h4>Reschedule: ${booking.doctorName}</h4><p>Choose a new date and time</p></div>`;
     document.getElementById('booking-modal').dataset.mode = 'reschedule';
     document.getElementById('confirm-booking-btn').textContent = 'Confirm Reschedule';
-    document.getElementById('confirm-booking-btn').onclick = () => confirmReschedule(serverId);
+    document.getElementById('confirm-booking-btn').onclick = () =>confirmReschedule(serverId);
     // Build date grid
     const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1971,7 +1968,7 @@ async function openRescheduleModal(serverId) {
           <span class="day-name">${days[d.getDay()]}</span>
           <span class="day-num">${d.getDate()}</span>
           <span style="font-size:.6rem;opacity:.7">${months[d.getMonth()]}</span>
-          ${hasSlots?`<span style="font-size:.55rem;color:#10b981;font-weight:700">OPEN</span>`:`<span style="font-size:.55rem;opacity:.5">–</span>`}</button>`;
+          ${hasSlots?`<span style="font-size:.55rem;color:#10b981;font-weight:700">OPEN</span>`:`<span style="font-size:.55rem;opacity:.5"></span>`}</button>`;
     }
     document.getElementById('booking-date-grid').innerHTML = dhtml;
     const startDate = firstAvailIdx>=0 ? new Date(now.getTime()+firstAvailIdx*86400000).toISOString().split('T')[0] : now.toISOString().split('T')[0];
@@ -2016,7 +2013,7 @@ function closeBookingModal(){
     document.getElementById('booking-patient-fields').style.display = '';
 }
 
-// ── PATIENT HISTORY (hospital dashboard) ────────────────────────────────────
+// PATIENT HISTORY (hospital dashboard)
 async function showPatientHistory(patientName, patientId) {
     let bookings = [];
     try {
@@ -2025,7 +2022,7 @@ async function showPatientHistory(patientName, patientId) {
         } else {
             // Fallback: search by name in hospital bookings
             const all = await apiFetch('/bookings/hospital/' + STATE.currentHospitalId + '/all');
-            bookings = all.filter(b => b.patientName === patientName);
+            bookings = all.filter(b =>b.patientName === patientName);
         }
     } catch(e) {}
     const modal = document.getElementById('confirm-dialog');
@@ -2040,7 +2037,7 @@ async function showPatientHistory(patientName, patientId) {
     } else {
         msg.innerHTML = bookings.map(b => `
             <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:.82rem">
-                <strong>${b.date} at ${fmtTime12(b.time)}</strong> — ${b.doctorName}<br>
+                <strong>${b.date} at ${fmtTime12(b.time)}</strong> ${b.doctorName}<br>
                 <span style="color:#64748b">${b.hospitalName||''}</span>
                 <span class="booking-status-badge ${b.status||'confirmed'}" style="font-size:.65rem;padding:1px 6px;margin-left:6px">${(b.status||'confirmed').charAt(0).toUpperCase()+(b.status||'confirmed').slice(1)}</span></div>`).join('');
     }
@@ -2087,7 +2084,7 @@ async function cancelServerBookingAndRefresh(serverId, context='patient') {
     else if(context==='clinic') renderBookingsForClinic(STATE.currentClinicId);
     else renderPatientBookings();
 }
-// Remove (hide) a server booking from patient view — cancel on server + refresh
+// Remove (hide) a server booking from patient view cancel on server + refresh
 async function removeServerBooking(serverId, context='patient') {
     const ok = await showConfirmDialog({ title: 'Remove Booking', message: 'Remove this booking from your history? This cannot be undone.', okLabel: 'Remove', okColor: '#ef4444', icon: '' });
     if (!ok) return;
@@ -2100,7 +2097,7 @@ async function removeServerBooking(serverId, context='patient') {
     showToast('Booking removed', '');
 }
 
-// ─── BOOKING CONFIRMATION MODAL ──────────────────────────
+// BOOKING CONFIRMATION MODAL
 function showBookingConfirmation({ doctorName, specialization, hospital, date, time, patientName, patientPhone }) {
     const [sy, smo, sd] = date.split('-').map(Number);
     const d = new Date(sy, smo-1, sd);
@@ -2114,14 +2111,14 @@ function showBookingConfirmation({ doctorName, specialization, hospital, date, t
     document.getElementById('bc-date').textContent = dateLabel;
     document.getElementById('bc-time').textContent = time;
     document.getElementById('bc-name').textContent = patientName;
-    document.getElementById('bc-phone').textContent = patientPhone || '—';
+    document.getElementById('bc-phone').textContent = patientPhone || '';
     el.style.display = 'flex';
 }
 function closeBookingConfirm() {
     document.getElementById('booking-confirm-modal').style.display = 'none';
 }
 
-// ─── INIT ─────────────────────────────────────────────────
+// INIT
 document.addEventListener('DOMContentLoaded', () => {
     // Inject spin animation for loading spinner
     const style = document.createElement('style');
