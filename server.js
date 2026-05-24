@@ -92,6 +92,8 @@ function slotToDate(dateStr, timeStr) {
 
 // Auto-cleanup: mark past slots as inactive (do NOT delete — hospital needs to see history)
 async function cleanExpiredSlots() {
+    if (mongoose.connection.readyState !== 1) return;
+
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     const nowHHMM = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
@@ -112,8 +114,8 @@ async function cleanExpiredSlots() {
 }
 
 // Run cleanup every minute for real-time accuracy
-setInterval(cleanExpiredSlots, 60 * 1000);
-cleanExpiredSlots();
+setInterval(() => cleanExpiredSlots().catch(err => console.error('Slot cleanup error:', err.message)), 60 * 1000);
+cleanExpiredSlots().catch(err => console.error('Slot cleanup error:', err.message));
 
 // ==============================
 // PATIENT AUTH ROUTES

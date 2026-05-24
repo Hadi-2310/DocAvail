@@ -1,12 +1,12 @@
 // ============================================================
 // DocAvail — main.js
 // All features merged & working:
-//  ✅ English-only voice
-//  ✅ Emergency INLINE on patient home (GPS + real distance + Google Maps)
-//  ✅ Slot edit + delete in hospital dashboard
-//  ✅ Delete booking history (patient + hospital + clinic)
-//  ✅ All times/dates based on real system time
-//  ✅ Availability "last updated" = real timestamp
+// English-only voice
+// Emergency INLINE on patient home (GPS + real distance + Google Maps)
+// Slot edit + delete in hospital dashboard
+// Delete booking history (patient + hospital + clinic)
+// All times/dates based on real system time
+// Availability "last updated" = real timestamp
 // ============================================================
 
 // Auto-detects: uses relative URL in production (Railway), localhost when developing
@@ -16,7 +16,7 @@ const API_URL = window.location.hostname === 'localhost' || window.location.host
 
 // ─── STYLED CONFIRM DIALOG ────────────────────────────────
 let _confirmResolve = null;
-function showConfirmDialog({ title, message, okLabel = 'Confirm', okColor = '#ef4444', icon = '⚠️' }) {
+function showConfirmDialog({ title, message, okLabel = 'Confirm', okColor = '#ef4444', icon = '' }) {
     return new Promise(resolve => {
         _confirmResolve = resolve;
         document.getElementById('confirm-dialog-title').textContent = title;
@@ -35,7 +35,7 @@ function confirmDialogResolve(result) {
 }
 
 // ─── REAL-TIME CLOCK HELPER ───────────────────────────────
-function nowISO()  { return new Date().toISOString(); }
+function nowISO() { return new Date().toISOString(); }
 function todayStr(){
     const d=new Date();
     const y=d.getFullYear();
@@ -59,7 +59,7 @@ function relativeTime(isoStr) {
     const d = new Date(isoStr);
     if (isNaN(d.getTime())) return 'Just now';
     const diff = Date.now() - d.getTime();
-    if (diff < 60000)   return 'Just now';
+    if (diff < 60000) return 'Just now';
     if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`;
     if (diff < 86400000)return `${Math.floor(diff/3600000)}h ago`;
     return fmtDateTime(isoStr);
@@ -70,7 +70,7 @@ const STATE = {
     currentScreen: 'splash',
     currentHospitalId: null,
     currentClinicId: null,
-    dashboardToken: null,   // set on hospital/clinic login
+    dashboardToken: null, // set on hospital/clinic login
     selectedHospitalId: null,
     selectedDoctor: null,
     doctorDetailBackTo: 'doctors-list-screen',
@@ -120,15 +120,15 @@ function dashHeaders() {
     if (STATE.dashboardToken) h['X-Dashboard-Token'] = STATE.dashboardToken;
     return h;
 }
-async function fetchHospitals()               { try { const d = await apiFetch('/hospitals'); STATE.hospitals = d; return d; } catch(e) { return []; } }
-async function fetchClinics()                 { try { const d = await apiFetch('/clinics');   STATE.clinics   = d; return d; } catch(e) { return []; } }
-async function fetchDoctorsByHospital(id)     { try { return await apiFetch('/doctors/hospital/'+id); } catch(e) { return []; } }
-async function fetchDoctorById(id)            { try { return await apiFetch('/doctors/'+id); } catch(e) { return null; } }
-async function fetchClinicById(id)            { try { return await apiFetch('/clinics/'+id); } catch(e) { return null; } }
-async function fetchHospitalStats(id)         { try { return await apiFetch('/stats/hospital/'+id); } catch(e) { return null; } }
-async function fetchSlotsForDoctor(doctorId)  { try { return await apiFetch('/slots/doctor/'+doctorId); } catch(e) { return []; } }
-async function fetchSlotsForHospital(hId)     { try { return await apiFetch('/slots/hospital/'+hId); } catch(e) { return []; } }
-async function fetchBookingsForHospital(hId)  { try { return await apiFetch('/bookings/hospital/'+hId); } catch(e) { return []; } }
+async function fetchHospitals() { try { const d = await apiFetch('/hospitals'); STATE.hospitals = d; return d; } catch(e) { return []; } }
+async function fetchClinics() { try { const d = await apiFetch('/clinics'); STATE.clinics = d; return d; } catch(e) { return []; } }
+async function fetchDoctorsByHospital(id) { try { return await apiFetch('/doctors/hospital/'+id); } catch(e) { return []; } }
+async function fetchDoctorById(id) { try { return await apiFetch('/doctors/'+id); } catch(e) { return null; } }
+async function fetchClinicById(id) { try { return await apiFetch('/clinics/'+id); } catch(e) { return null; } }
+async function fetchHospitalStats(id) { try { return await apiFetch('/stats/hospital/'+id); } catch(e) { return null; } }
+async function fetchSlotsForDoctor(doctorId) { try { return await apiFetch('/slots/doctor/'+doctorId); } catch(e) { return []; } }
+async function fetchSlotsForHospital(hId) { try { return await apiFetch('/slots/hospital/'+hId); } catch(e) { return []; } }
+async function fetchBookingsForHospital(hId) { try { return await apiFetch('/bookings/hospital/'+hId); } catch(e) { return []; } }
 async function searchDoctors(q, spec, hId, avail=false) {
     try {
         const res = await fetch(`${API_URL}/doctors/search`, {
@@ -176,8 +176,8 @@ function navigateToScreen(screen, data = null) {
         _POLL.start('hosp-stats', refreshDashStats, 15000);
         _POLL.start('hosp-tab', () => {
             const tab = STATE.currentDashTab;
-            if (tab === 'doctors')  renderDashDoctors();
-            else if (tab === 'slots')    renderDashSlots();
+            if (tab === 'doctors') renderDashDoctors();
+            else if (tab === 'slots') renderDashSlots();
             else if (tab === 'bookings') renderDashBookings();
         }, 20000);
     }
@@ -227,7 +227,7 @@ async function refreshDashStats() {
 // ─── AUTH ─────────────────────────────────────────────────
 function updatePatientGreeting() {
     const badge = document.getElementById('patient-greeting-badge');
-    const wt    = document.getElementById('patient-welcome-text');
+    const wt = document.getElementById('patient-welcome-text');
     if (STATE.currentPatient) {
         if (badge) { badge.style.display=''; document.getElementById('greeting-name').textContent = STATE.currentPatient.name; }
         if (wt) wt.textContent = `Welcome back, ${STATE.currentPatient.name}`;
@@ -239,7 +239,7 @@ function updatePatientGreeting() {
 function switchAuthTab(tab) {
     document.getElementById('tab-login').classList.toggle('active', tab==='login');
     document.getElementById('tab-register').classList.toggle('active', tab==='register');
-    document.getElementById('patient-login-form').style.display    = tab==='login'    ? 'block':'none';
+    document.getElementById('patient-login-form').style.display = tab==='login' ? 'block':'none';
     document.getElementById('patient-register-form').style.display = tab==='register' ? 'block':'none';
 }
 async function handlePatientLogin(event) {
@@ -249,7 +249,7 @@ async function handlePatientLogin(event) {
     const errEl = document.getElementById('login-error');
     errEl.style.display = 'none';
     try {
-        const res  = await fetch(`${API_URL}/patients/login`, {
+        const res = await fetch(`${API_URL}/patients/login`, {
             method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password})
         });
         const data = await res.json();
@@ -274,18 +274,18 @@ async function handlePatientRegister(event) {
         });
         const data = await res.json();
         if (!res.ok) { errEl.textContent=data.error||'Registration failed'; errEl.style.display='block'; return; }
-        okEl.textContent='✅ Account created! Please login.'; okEl.style.display='block';
+        okEl.textContent='Account created! Please login.'; okEl.style.display='block';
         setTimeout(()=>switchAuthTab('login'), 1500);
     } catch(e) { errEl.textContent='Connection error. Is the server running?'; errEl.style.display='block'; }
 }
 async function handleHospitalLogin(event) {
     event.preventDefault();
-    const id  = parseInt(document.getElementById('hospital-id-input').value);
+    const id = parseInt(document.getElementById('hospital-id-input').value);
     const pwd = document.getElementById('hosp-pass-input').value;
     const err = document.getElementById('hosp-login-error');
     err.style.display='none';
     try {
-        const res  = await fetch(`${API_URL}/hospitals/login`, {
+        const res = await fetch(`${API_URL}/hospitals/login`, {
             method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({hospitalId:id, password:pwd})
         });
         const data = await res.json();
@@ -293,22 +293,22 @@ async function handleHospitalLogin(event) {
             STATE.dashboardToken = data.token || null;
             navigateToScreen('hospital-dashboard', id);
         } else {
-            err.textContent = data.error || '❌ Invalid Hospital ID or Password';
+            err.textContent = data.error || 'Invalid hospital ID or password';
             err.style.display = 'block';
         }
     } catch(e) {
-        err.textContent = '❌ Cannot connect to server. Is it running?';
+        err.textContent = 'Cannot connect to server. Is it running?';
         err.style.display = 'block';
     }
 }
 async function handleClinicLogin(e) {
     e.preventDefault();
-    const id  = parseInt(document.getElementById('clinic-id-input').value);
+    const id = parseInt(document.getElementById('clinic-id-input').value);
     const pwd = document.getElementById('clinic-password-input').value;
     const err = document.getElementById('clinic-login-error');
     if (err) err.style.display = 'none';
     try {
-        const res  = await fetch(`${API_URL}/clinics/login`, {
+        const res = await fetch(`${API_URL}/clinics/login`, {
             method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({clinicId:id, password:pwd})
         });
         const data = await res.json();
@@ -316,26 +316,26 @@ async function handleClinicLogin(e) {
             STATE.dashboardToken = data.token || null;
             navigateToScreen('clinic-dashboard', id);
         } else {
-            const msg = data.error || '❌ Invalid Clinic ID or Password';
+            const msg = data.error || 'Invalid clinic ID or password';
             if (err) { err.textContent = msg; err.style.display = 'block'; }
             else showToast(msg, 'error');
         }
     } catch(e) {
-        const msg = '❌ Cannot connect to server. Is it running?';
+        const msg = 'Cannot connect to server. Is it running?';
         if (err) { err.textContent = msg; err.style.display = 'block'; }
         else showToast(msg, 'error');
     }
 }
 function logoutPatient() { STATE.currentPatient = null; navigateToScreen('welcome'); }
 async function refreshHospitalDashboard() {
-    showToast('🔄 Refreshing...', '');
+    showToast('Refreshing...', '');
     await Promise.all([refreshDashStats(), (STATE.currentDashTab === 'doctors' ? renderDashDoctors() : STATE.currentDashTab === 'slots' ? renderDashSlots() : renderDashBookings())]);
-    showToast('✅ Refreshed', 'success');
+    showToast('Refreshed', 'success');
 }
 async function refreshClinicDashboard() {
-    showToast('🔄 Refreshing...', '');
+    showToast('Refreshing...', '');
     await renderClinicDashboard();
-    showToast('✅ Refreshed', 'success');
+    showToast('Refreshed', 'success');
 }
 
 // ─── FILTER PANEL ─────────────────────────────────────────
@@ -369,7 +369,7 @@ function getUserLocation() {
         if (!navigator.geolocation) { resolve(null); return; }
         navigator.geolocation.getCurrentPosition(
             pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            ()  => resolve(null),
+            () => resolve(null),
             { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
         );
     });
@@ -385,15 +385,15 @@ async function applyFilters() {
     // Get GPS if sorting by distance
     if (STATE.sortFilter === 'distance') {
         const locEl = document.getElementById('distance-loc-status');
-        if (locEl) locEl.textContent = '📡 Getting your location...';
+        if (locEl) locEl.textContent = 'Getting your location...';
         STATE.userLocation = await getUserLocation();
         if (locEl) locEl.textContent = STATE.userLocation
-            ? `📍 Location found (${STATE.userLocation.lat.toFixed(4)}, ${STATE.userLocation.lng.toFixed(4)})`
-            : '⚠️ Location unavailable — sorting by doctor count instead';
+            ? `Location found (${STATE.userLocation.lat.toFixed(4)}, ${STATE.userLocation.lng.toFixed(4)})`
+            : 'Location unavailable — sorting by doctor count instead';
     }
     renderHospitalsList();
     renderClinicsList();
-    showToast('✅ Filters applied');
+    showToast('Filters applied');
 }
 
 // ─── HOSPITALS LIST ───────────────────────────────────────
@@ -426,20 +426,17 @@ async function renderHospitalsList() {
 
     c.innerHTML = sorted.map(h=>`
       <div class="hospital-card" onclick="navigateToScreen('doctors-list-screen',${h.id})">
-        <div class="hospital-icon">🏥</div>
+        <div class="hospital-icon"></div>
         <div class="hospital-info">
           <h3>${h.name}</h3>
           <div class="entity-meta">
-            <div class="entity-meta-item">📍 ${h.location}</div>
-            <div class="entity-meta-item">👥 ${h.totalDoctors||0} Doctors</div>
+            <div class="entity-meta-item"> ${h.location}</div>
+            <div class="entity-meta-item"> ${h.totalDoctors||0} Doctors</div>
             ${h.rating?`<div class="entity-meta-item">⭐ ${h.rating}</div>`:''}
-            ${h.distLabel?`<div class="entity-meta-item">📏 ${h.distLabel}</div>`:''}
-          </div>
+            ${h.distLabel?`<div class="entity-meta-item"> ${h.distLabel}</div>`:''}</div>
           <div class="avail-bar"><div class="avail-fill" style="width:${h.availabilityPercent||0}%"></div></div>
-          <div class="avail-text"><strong>${h.availableCount||0}</strong> of ${h.totalDoctors||0} available now</div>
-        </div>
-        <div class="entity-arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
-      </div>
+          <div class="avail-text"><strong>${h.availableCount||0}</strong> of ${h.totalDoctors||0} available now</div></div>
+        <div class="entity-arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div></div>
     `).join('');
 }
 
@@ -472,25 +469,22 @@ async function renderClinicsList() {
     c.innerHTML = clinics.map(cl => {
         const futureCount = clinicFutureMap[cl.clinicId] || 0;
         const futureBadge = !cl.available && futureCount > 0
-            ? `<div class="slot-count-badge future">📅 ${futureCount} upcoming spot${futureCount!==1?'s':''} — tap to book</div>`
+            ? `<div class="slot-count-badge future"> ${futureCount} upcoming spot${futureCount!==1?'s':''} — tap to book</div>`
             : '';
         return `
       <div class="clinic-card" onclick="viewClinicDetail(${cl.clinicId})">
-        <div class="clinic-icon">🏠</div>
+        <div class="clinic-icon"></div>
         <div class="clinic-info">
           <h3>${cl.name}</h3>
           <div class="entity-meta">
-            <div class="entity-meta-item">👨‍⚕️ ${cl.doctorName}</div>
-            <div class="entity-meta-item">🩺 ${cl.specialization}</div>
-            <div class="entity-meta-item">📍 ${cl.location}</div>
-          </div>
+            <div class="entity-meta-item"> ${cl.doctorName}</div>
+            <div class="entity-meta-item"> ${cl.specialization}</div>
+            <div class="entity-meta-item"> ${cl.location}</div></div>
           <span class="avail-badge ${cl.available?'green':'red'}">${cl.available?'Available':'Unavailable'}</span>
-          <div class="clinic-fee-badge">💰 ${cl.consultationFee}</div>
+          <div class="clinic-fee-badge"> ${cl.consultationFee}</div>
           <div class="clinic-timings">⏰ ${cl.timings}</div>
-          ${futureBadge}
-        </div>
-        <div class="entity-arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
-      </div>
+          ${futureBadge}</div>
+        <div class="entity-arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div></div>
     `}).join('');
 }
 async function viewClinicDetail(clinicId) {
@@ -513,9 +507,9 @@ function switchTab(tab) {
     ['hospitals','clinics','mybookings'].forEach(t=>{
         document.getElementById('tab-'+t).classList.toggle('active', t===tab);
     });
-    document.getElementById('hospitals-list').style.display   = tab==='hospitals'   ? '' : 'none';
-    document.getElementById('clinics-list').style.display     = tab==='clinics'     ? 'flex':'none';
-    document.getElementById('my-bookings-list').style.display = tab==='mybookings'  ? 'flex':'none';
+    document.getElementById('hospitals-list').style.display = tab==='hospitals' ? '' : 'none';
+    document.getElementById('clinics-list').style.display = tab==='clinics' ? 'flex':'none';
+    document.getElementById('my-bookings-list').style.display = tab==='mybookings' ? 'flex':'none';
     if (tab==='clinics' && STATE.clinics.length===0) renderClinicsList();
     if (tab==='mybookings') renderPatientBookings();
 }
@@ -547,10 +541,8 @@ function renderGlobalResults(results) {
               <div class="spec-result-info">
                 <h4>${r.name}</h4>
                 <div class="spec-result-spec">${r.specialization}</div>
-                <div class="spec-result-entity">${r.entityType==='clinic'?'🏠':'🏥'} ${r.entityName}</div>
-              </div>
-              <span class="avail-badge ${r.available?'green':'red'}">${r.available?'Available':'Busy'}</span>
-            </div>`).join('');
+                <div class="spec-result-entity">${r.entityType==='clinic'?'':''} ${r.entityName}</div></div>
+              <span class="avail-badge ${r.available?'green':'red'}">${r.available?'Available':'Busy'}</span></div>`).join('');
     panel.style.display='block';
 }
 function openSpecialistDetail(id,type) {
@@ -562,27 +554,24 @@ function openSpecialistDetail(id,type) {
 let _specTimer;
 function searchSpecialists() { clearTimeout(_specTimer); _specTimer=setTimeout(_doSpecSearch,300); }
 async function _doSpecSearch() {
-    const q    = document.getElementById('specialist-input').value.trim();
+    const q = document.getElementById('specialist-input').value.trim();
     const avail= document.getElementById('spec-available-only').checked;
     const results = await globalSearch(q,STATE.specialistSpecialty,STATE.specialistEntity,avail);
     document.getElementById('specialist-results-count').textContent=`${results.length} result${results.length!==1?'s':''} found`;
     const c=document.getElementById('specialist-results');
-    if (!results.length) { c.innerHTML='<div class="empty-state"><div style="font-size:2.5rem">😔</div><p>No specialists found.</p></div>'; return; }
+    if (!results.length) { c.innerHTML='<div class="empty-state"><div class="empty-state-mark">NONE</div><p>No specialists found.</p></div>'; return; }
     c.innerHTML=results.map(r=>`
       <div class="spec-result-card" onclick="openSpecialistDetail(${r.id},'${r.entityType}')">
         <img src="${r.image||'https://i.pravatar.cc/150?img=25'}" alt="${r.name}" onerror="this.src='https://i.pravatar.cc/150?img=25'">
         <div class="spec-result-info">
           <h4>${r.name}</h4>
           <div class="spec-result-spec">${r.specialization}</div>
-          <div class="spec-result-entity">${r.entityType==='clinic'?'🏠 Clinic: ':'🏥 Hospital: '}${r.entityName}</div>
-          ${r.consultationFee?`<div style="font-size:.75rem;color:var(--green-600);font-weight:600;margin-top:3px">💰 ${r.consultationFee}</div>`:''}
-        </div>
+          <div class="spec-result-entity">${r.entityType==='clinic'?'Clinic: ':'Hospital: '}${r.entityName}</div>
+          ${r.consultationFee?`<div style="font-size:.75rem;color:var(--green-600);font-weight:600;margin-top:3px"> ${r.consultationFee}</div>`:''}</div>
         <div style="text-align:right;flex-shrink:0">
           <span class="avail-badge ${r.available?'green':'red'}">${r.available?'Available':'Busy'}</span>
           <div class="spec-rating" style="margin-top:4px">⭐ ${r.rating||'N/A'}</div>
-          ${r.experience?`<div style="font-size:.72rem;color:var(--gray-400);margin-top:2px">${r.experience}</div>`:''}
-        </div>
-      </div>`).join('');
+          ${r.experience?`<div style="font-size:.72rem;color:var(--gray-400);margin-top:2px">${r.experience}</div>`:''}</div></div>`).join('');
 }
 function setSpecialistSpecialty(btn) {
     document.querySelectorAll('#spec-specialty-chips .spec-chip').forEach(b=>b.classList.remove('active'));
@@ -645,13 +634,13 @@ async function renderDoctorsList() {
             if (slotInfo) {
                 const rem = slotInfo.total - slotInfo.filled;
                 slotBadge = rem > 0
-                    ? `<div class="slot-count-badge available">🗓 ${rem} slot${rem!==1?'s':''} today</div>`
-                    : `<div class="slot-count-badge full">🚫 Fully booked today</div>`;
+                    ? `<div class="slot-count-badge available"> ${rem} slot${rem!==1?'s':''} today</div>`
+                    : `<div class="slot-count-badge full">Fully booked today</div>`;
             }
         } else {
             // Unavailable doctor: show future slot count if any
             if (futureCount > 0) {
-                slotBadge = `<div class="slot-count-badge future">📅 ${futureCount} upcoming slot${futureCount!==1?'s':''} — tap to book</div>`;
+                slotBadge = `<div class="slot-count-badge future"> ${futureCount} upcoming slot${futureCount!==1?'s':''} — tap to book</div>`;
             }
         }
         return `
@@ -662,12 +651,9 @@ async function renderDoctorsList() {
           <span class="specialization-tag">${d.specialization}</span>
           <div class="doctor-meta">
             <div class="meta-row">⭐ ${d.rating} • ${d.experience}</div>
-            <div class="meta-row" style="font-size:.7rem">${d.hospital}</div>
-          </div>
+            <div class="meta-row" style="font-size:.7rem">${d.hospital}</div></div>
           <span class="avail-badge ${d.available?'green':'red'}">${d.available?'Available':'Busy'}</span>
-          ${slotBadge}
-        </div>
-      </div>`;}).join('');
+          ${slotBadge}</div></div>`;}).join('');
 }
 function filterDoctors() {
     clearTimeout(STATE._fTimer);
@@ -698,32 +684,24 @@ function renderDoctorDetail() {
           <div>
             <h2 class="detail-doc-name">${d.name}</h2>
             <span class="specialization-tag">${d.specialization}</span><br>
-            <span class="avail-badge ${d.available?'green':'red'}" style="margin-top:8px;display:inline-flex">${d.available?'● Available Now':'● Not Available'}</span>
-          </div>
-        </div>
+            <span class="avail-badge ${d.available?'green':'red'}" style="margin-top:8px;display:inline-flex">${d.available?'● Available Now':'● Not Available'}</span></div></div>
         <div class="detail-section">
           <h3>${isClinic?'Clinic Information':'Hospital Information'}</h3>
           <div class="detail-grid">
-            <div class="detail-info-item">📍<div><div class="detail-info-label">${isClinic?'Clinic':'Hospital'}</div><div class="detail-info-val">${d.hospital}</div></div></div>
+            <div class="detail-info-item"><div><div class="detail-info-label">${isClinic?'Clinic':'Hospital'}</div><div class="detail-info-val">${d.hospital}</div></div></div>
             <div class="detail-info-item">⭐<div><div class="detail-info-label">Rating</div><div class="detail-info-val">${d.rating}</div></div></div>
-            <div class="detail-info-item">📅<div><div class="detail-info-label">Experience</div><div class="detail-info-val">${d.experience||'N/A'}</div></div></div>
-            <div class="detail-info-item">👤<div><div class="detail-info-label">Gender</div><div class="detail-info-val">${d.gender||'N/A'}</div></div></div>
+            <div class="detail-info-item"><div><div class="detail-info-label">Experience</div><div class="detail-info-val">${d.experience||'N/A'}</div></div></div>
+            <div class="detail-info-item"><div><div class="detail-info-label">Gender</div><div class="detail-info-val">${d.gender||'N/A'}</div></div></div>
             ${isClinic&&d.consultationFee?`
-            <div class="detail-info-item">💰<div><div class="detail-info-label">Fee</div><div class="detail-info-val">${d.consultationFee}</div></div></div>
-            <div class="detail-info-item">⏰<div><div class="detail-info-label">Timings</div><div class="detail-info-val">${d.timings}</div></div></div>`:''}
-          </div>
-        </div>
+            <div class="detail-info-item"><div><div class="detail-info-label">Fee</div><div class="detail-info-val">${d.consultationFee}</div></div></div>
+            <div class="detail-info-item">⏰<div><div class="detail-info-label">Timings</div><div class="detail-info-val">${d.timings}</div></div></div>`:''}</div></div>
         <div class="detail-section">
           <h3>Contact</h3>
           <div class="detail-grid">
-            <div class="detail-info-item">📞<div><div class="detail-info-label">Phone</div><div class="detail-info-val">${d.phone||'N/A'}</div></div></div>
-            <div class="detail-info-item">✉️<div><div class="detail-info-label">Email</div><div class="detail-info-val" style="word-break:break-all">${d.email||'N/A'}</div></div></div>
-          </div>
-        </div>
+            <div class="detail-info-item"><div><div class="detail-info-label">Phone</div><div class="detail-info-val">${d.phone||'N/A'}</div></div></div>
+            <div class="detail-info-item"><div><div class="detail-info-label">Email</div><div class="detail-info-val" style="word-break:break-all">${d.email||'N/A'}</div></div></div></div></div>
         <div id="doctor-detail-book-area">
-          <div style="text-align:center;padding:8px;color:#94a3b8;font-size:.82rem">Checking available slots...</div>
-        </div>
-      </div>`;
+          <div style="text-align:center;padding:8px;color:#94a3b8;font-size:.82rem">Checking available slots...</div></div></div>`;
     _renderDoctorBookBtn(d);
 }
 async function _renderDoctorBookBtn(d) {
@@ -749,11 +727,11 @@ async function _renderDoctorBookBtn(d) {
     if (futureSlotCount > 0) {
         // Has future slots — show booking button regardless of current availability (works for both hospitals and clinics)
         const warning = !d.available
-            ? '<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:10px;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 14px;font-size:.82rem;color:#92400e;font-weight:600">⚠️ Not available right now — but has <strong>' + futureSlotCount + '</strong> upcoming spot' + (futureSlotCount !== 1 ? 's' : '') + '</div>'
+            ? '<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:10px;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 14px;font-size:.82rem;color:#92400e;font-weight:600">Not available right now — but has <strong>' + futureSlotCount + '</strong> upcoming spot' + (futureSlotCount !== 1 ? 's' : '') + '</div>'
             : '';
-        area.innerHTML = warning + '<button class="btn-book" onclick="openBookingModal(STATE.selectedDoctor)">📅 Book Appointment</button>';
+        area.innerHTML = warning + '<button class="btn-book" onclick="openBookingModal(STATE.selectedDoctor)">Book Appointment</button>';
     } else if (d.available) {
-        area.innerHTML = '<button class="btn-book" onclick="openBookingModal(STATE.selectedDoctor)">📅 Book Appointment</button>';
+        area.innerHTML = '<button class="btn-book" onclick="openBookingModal(STATE.selectedDoctor)">Book Appointment</button>';
     } else {
         // Unavailable AND no future slots
         const msg = isClinic
@@ -765,33 +743,33 @@ async function _renderDoctorBookBtn(d) {
 
 // ─── INLINE GPS EMERGENCY ─────────────────────────────────
 async function handleGeoEmergency() {
-    const panel   = document.getElementById('emergency-inline-panel');
-    const locBar  = document.getElementById('emp-loc-bar');
+    const panel = document.getElementById('emergency-inline-panel');
+    const locBar = document.getElementById('emp-loc-bar');
     const results = document.getElementById('emp-results');
-    const btn     = document.querySelector('.btn-emergency');
+    const btn = document.querySelector('.btn-emergency');
     panel.classList.add('visible');
     if (btn) btn.classList.add('active');
     // Scroll emergency panel to top
     panel.scrollTop = 0;
     document.body.style.overflow = 'hidden';
-    locBar.className='emp-loc-bar locating'; locBar.textContent='📡 Requesting your GPS location...';
-    results.innerHTML   = '<div style="text-align:center;padding:14px;opacity:.8;font-size:.85rem;">Searching nearby hospitals...</div>';
+    locBar.className='emp-loc-bar locating'; locBar.textContent='Requesting your GPS location...';
+    results.innerHTML = '<div style="text-align:center;padding:14px;opacity:.8;font-size:.85rem;">Searching nearby hospitals...</div>';
     // Scroll panel into view
     panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
 
     if (!navigator.geolocation) {
-        locBar.className='emp-loc-bar error'; locBar.textContent='⚠️ GPS not supported — showing all hospitals';
+        locBar.className='emp-loc-bar error'; locBar.textContent='GPS not supported — showing all hospitals';
         await _loadEmergencyData(null, null);
         return;
     }
     navigator.geolocation.getCurrentPosition(
         async (pos) => {
             const { latitude:lat, longitude:lng, accuracy } = pos.coords;
-            locBar.className='emp-loc-bar'; locBar.innerHTML = `✅ Location detected — ${lat.toFixed(4)}°, ${lng.toFixed(4)}° &nbsp;(±${Math.round(accuracy)}m) &nbsp;<button onclick="openMaps(${lat},${lng},'My Location')" style="background:#dcfce7;border:1.5px solid #86efac;color:#166534;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:.74rem;font-weight:700;">🗺️ View on Map</button>`;
+            locBar.className='emp-loc-bar'; locBar.innerHTML = `Location detected — ${lat.toFixed(4)}°, ${lng.toFixed(4)}° &nbsp;(±${Math.round(accuracy)}m) &nbsp;<button onclick="openMaps(${lat},${lng},'My Location')" style="background:#dcfce7;border:1.5px solid #86efac;color:#166534;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:.74rem;font-weight:700;">View on Map</button>`;
             await _loadEmergencyData(lat, lng);
         },
         (err) => {
-            let msg = '⚠️ ';
+            let msg = ' ';
             if (err.code===1) msg += 'Location denied — showing all hospitals';
             else if (err.code===2) msg += 'Location unavailable — showing all hospitals';
             else msg += 'Location timeout — showing all hospitals';
@@ -809,7 +787,7 @@ async function _loadEmergencyData(lat, lng) {
         const data = await (await fetch(url)).json();
         _renderEmergencyResults(data, lat, lng);
     } catch(e) {
-        results.innerHTML = '<div style="text-align:center;padding:14px;opacity:.8;font-size:.85rem;">⚠️ Could not load data. Check backend connection.</div>';
+        results.innerHTML = '<div style="text-align:center;padding:14px;opacity:.8;font-size:.85rem;">Could not load data. Check backend connection.</div>';
     }
 }
 function _renderEmergencyResults(data, userLat, userLng) {
@@ -821,28 +799,21 @@ function _renderEmergencyResults(data, userLat, userLng) {
         html += '<div class="emp-results-grid">';
         html += data.hospitals.map(h => {
             const hasCoords = h.coordinates && h.coordinates.lat && h.coordinates.lng;
-            const mapsUrl   = hasCoords
+            const mapsUrl = hasCoords
                 ? `https://www.google.com/maps/dir/?api=1&destination=${h.coordinates.lat},${h.coordinates.lng}`
                 : `https://www.google.com/maps/search/${encodeURIComponent(h.name)}`;
             const dist = h.distanceLabel && h.distanceLabel !== 'Distance unknown' ? h.distanceLabel : null;
             return `<div class="emp-card">
               <div class="emp-card-icon-row">
-                <span class="emp-card-type-badge">🏥 Hospital</span>
-                ${dist ? `<span class="emp-card-dist">📍 ${dist}</span>` : ''}
-              </div>
+                <span class="emp-card-type-badge">Hospital</span>
+                ${dist ? `<span class="emp-card-dist"> ${dist}</span>` : ''}</div>
               <div class="emp-card-name">${h.name}</div>
               <div class="emp-card-detail">${h.location || h.address || 'Nearby'}</div>
               <div class="emp-btn-row">
                 ${h.phone ? `<button class="emp-call-btn" onclick="window.location.href='tel:${h.phone}'">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.6 3.47 2 2 0 0 1 3.56 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.82a16 16 0 0 0 6.29 6.29l.82-.82a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                  Call
-                </button>` : ''}
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.6 3.47 2 2 0 0 1 3.56 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.82a16 16 0 0 0 6.29 6.29l.82-.82a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>Call</button>` : ''}
                 <button class="emp-map-btn" onclick="window.open('${mapsUrl}','_blank')">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
-                  Directions
-                </button>
-              </div>
-            </div>`;
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>Directions</button></div></div>`;
         }).join('');
         html += '</div>';
     }
@@ -853,28 +824,22 @@ function _renderEmergencyResults(data, userLat, userLng) {
         html += data.doctors.map(d => `
           <div class="emp-card">
             <div class="emp-card-icon-row">
-              <span class="emp-card-type-badge doc">🩺 Doctor</span>
-            </div>
+              <span class="emp-card-type-badge doc">Doctor</span></div>
             <div class="emp-card-name">${d.name}</div>
             <div class="emp-card-detail">${d.specialization} &nbsp;·&nbsp; ${d.hospital}</div>
             <div class="emp-btn-row">
               ${d.phone ? `<button class="emp-call-btn" onclick="window.location.href='tel:${d.phone}'">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.6 3.47 2 2 0 0 1 3.56 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.82a16 16 0 0 0 6.29 6.29l.82-.82a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                Call
-              </button>` : ''}
-            </div>
-          </div>`).join('');
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.6 3.47 2 2 0 0 1 3.56 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.82a16 16 0 0 0 6.29 6.29l.82-.82a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>Call</button>` : ''}</div></div>`).join('');
         html += '</div>';
     }
 
     html += `<div class="emp-section-title">Emergency Hotlines</div>
       <div class="emp-hotlines">
-        <button onclick="window.location.href='tel:112'">📞 112 — Emergency</button>
-        <button onclick="window.location.href='tel:108'">🚑 108 — Ambulance</button>
-      </div>`;
+        <button onclick="window.location.href='tel:112'"> 112 — Emergency</button>
+        <button onclick="window.location.href='tel:108'"> 108 — Ambulance</button></div>`;
 
     if (userLat && userLng) {
-        html += `<div class="emp-my-loc" style="display:none">📍 Your location: ${userLat.toFixed(5)}, ${userLng.toFixed(5)}</div>`;
+        html += `<div class="emp-my-loc" style="display:none">Your location: ${userLat.toFixed(5)}, ${userLng.toFixed(5)}</div>`;
     }
 
     c.innerHTML = html || '<div style="text-align:center;padding:20px;color:#9ca3af;">No emergency data found. Call 112 immediately.</div>';
@@ -899,8 +864,8 @@ function resetVoiceAssistant() {
     document.getElementById('mic-wave-ring')?.classList.remove('active');
     const s=document.getElementById('voice-status'); if(s) s.textContent='Tap to speak (English)';
     document.getElementById('voice-transcript-box') && (document.getElementById('voice-transcript-box').style.display='none');
-    document.getElementById('voice-response-box')   && (document.getElementById('voice-response-box').style.display='none');
-    document.getElementById('voice-results')        && (document.getElementById('voice-results').style.display='none');
+    document.getElementById('voice-response-box') && (document.getElementById('voice-response-box').style.display='none');
+    document.getElementById('voice-results') && (document.getElementById('voice-results').style.display='none');
 }
 function toggleVoiceListening() {
     killSpeech();
@@ -909,7 +874,7 @@ function toggleVoiceListening() {
 function startVoiceListening() {
     killSpeech();
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { document.getElementById('voice-status').textContent='❌ Voice not supported. Use Chrome or Edge.'; return; }
+    if (!SR) { document.getElementById('voice-status').textContent='Voice not supported. Use Chrome or Edge.'; return; }
     if (STATE.recognition) { try{STATE.recognition.abort();}catch(e){} STATE.recognition=null; }
     const r = new SR();
     // FIX: continuous=false fires onend naturally when user stops → no restart loop on mobile
@@ -921,7 +886,7 @@ function startVoiceListening() {
         STATE.isVoiceListening=true;
         document.getElementById('mic-button').classList.add('active');
         document.getElementById('mic-wave-ring').classList.add('active');
-        document.getElementById('voice-status').textContent='🎤 Listening... speak clearly';
+        document.getElementById('voice-status').textContent='Listening... speak clearly';
         document.getElementById('voice-transcript-box').style.display='block';
         document.getElementById('voice-transcript').textContent='...';
         document.getElementById('voice-response-box').style.display='none';
@@ -950,11 +915,11 @@ function startVoiceListening() {
     };
     r.onerror=(ev)=>{
         if(ev.error==='not-allowed'||ev.error==='permission-denied')
-            document.getElementById('voice-status').textContent='❌ Microphone access denied. Allow microphone in browser.';
+            document.getElementById('voice-status').textContent='Microphone access denied. Allow microphone in browser.';
         else if(ev.error==='no-speech')
-            document.getElementById('voice-status').textContent='❌ No speech detected. Try again.';
+            document.getElementById('voice-status').textContent='No speech detected. Try again.';
         else if(ev.error!=='aborted')
-            document.getElementById('voice-status').textContent='❌ Error: '+ev.error+'. Try again.';
+            document.getElementById('voice-status').textContent='Error: '+ev.error+'. Try again.';
         stopVoiceListening();
     };
     // FIX: onend now correctly fires after speech ends (continuous=false)
@@ -973,7 +938,7 @@ function startVoiceListening() {
         }
     };
     STATE._finalTranscript=''; STATE._voiceProcessed=false;
-    try{r.start();}catch(e){document.getElementById('voice-status').textContent='❌ Could not start microphone. Try refreshing.';}
+    try{r.start();}catch(e){document.getElementById('voice-status').textContent='Could not start microphone. Try refreshing.';}
 }
 function stopVoiceListening() {
     killSpeech(); STATE.isVoiceListening=false; clearTimeout(STATE._vTimer);
@@ -984,14 +949,14 @@ function stopVoiceListening() {
 }
 async function processVoiceQuery(transcript) {
     killSpeech();
-    document.getElementById('voice-status').textContent = '🔍 Searching...';
+    document.getElementById('voice-status').textContent = 'Searching...';
     document.getElementById('voice-transcript').textContent = transcript;
     const lower = transcript.toLowerCase().trim();
 
     // ── Emergency shortcut ────────────────────────────────────
     if (/\b(emergency|urgent|ambulance|help me)\b/.test(lower)) {
         document.getElementById('voice-response-box').style.display = 'block';
-        document.getElementById('voice-response').innerHTML = '<strong>🚨 Opening Emergency GPS mode...</strong>';
+        document.getElementById('voice-response').innerHTML = '<strong>Opening Emergency GPS mode...</strong>';
         setTimeout(() => { navigateToScreen('hospital-list-screen'); setTimeout(handleGeoEmergency, 300); }, 500);
         return;
     }
@@ -999,7 +964,7 @@ async function processVoiceQuery(transcript) {
     // ── Step 1: Use cached hospitals/clinics — only fetch if not yet loaded ──
     // FIX: avoids re-fetching entire DB on every voice query
     let hospitals = STATE.hospitals;
-    let clinics   = STATE.clinics;
+    let clinics = STATE.clinics;
     if (!hospitals || !hospitals.length || !clinics || !clinics.length) {
         try {
             [hospitals, clinics] = await Promise.all([
@@ -1007,7 +972,7 @@ async function processVoiceQuery(transcript) {
                 apiFetch('/clinics')
             ]);
             STATE.hospitals = hospitals;
-            STATE.clinics   = clinics;
+            STATE.clinics = clinics;
         } catch(e) { hospitals = []; clinics = []; }
     }
 
@@ -1050,11 +1015,11 @@ async function processVoiceQuery(transcript) {
 
     // ── Step 2: Navigate instantly — no extra API call needed ──
     const respBox = document.getElementById('voice-response-box');
-    const respEl  = document.getElementById('voice-response');
+    const respEl = document.getElementById('voice-response');
     respBox.style.display = 'block';
 
     if (hospitalMatch) {
-        respEl.innerHTML = `🏥 Found <strong>${hospitalMatch.name}</strong> — opening doctors list...`;
+        respEl.innerHTML = `Found <strong>${hospitalMatch.name}</strong> — opening doctors list...`;
         document.getElementById('voice-status').textContent = 'Navigating...';
         // FIX: reduced delay 800ms → 300ms
         setTimeout(() => navigateToScreen('doctors-list-screen', hospitalMatch.id || hospitalMatch.hospitalId), 300);
@@ -1063,7 +1028,7 @@ async function processVoiceQuery(transcript) {
     }
 
     if (clinicMatch) {
-        respEl.innerHTML = `🏠 Found <strong>${clinicMatch.name}</strong> — opening details...`;
+        respEl.innerHTML = `Found <strong>${clinicMatch.name}</strong> — opening details...`;
         document.getElementById('voice-status').textContent = 'Opening...';
         const clinicAsDoctor = {
             isClinic: true, doctorId: clinicMatch.clinicId, id: clinicMatch.clinicId,
@@ -1081,15 +1046,15 @@ async function processVoiceQuery(transcript) {
 
     // ── Step 3: Match specialty ───────────────────────────────
     const specMap = [
-        ['Cardiologist',      ['heart','cardiac','cardiology','cardiologist','chest pain','palpitation','blood pressure','hypertension']],
-        ['Pediatrician',      ['pediatric','paediatric','child','children','baby','infant','kids','my son','my daughter']],
-        ['Dermatologist',     ['skin','dermatology','rash','acne','eczema','hair loss','itching','dermatologist']],
-        ['Orthopedic',        ['orthopedic','bone','joint','fracture','knee','back pain','spine','shoulder','ortho']],
-        ['Neurologist',       ['neuro','neurology','brain','migraine','headache','seizure','stroke','nerve','dizziness','vertigo','epilepsy']],
+        ['Cardiologist', ['heart','cardiac','cardiology','cardiologist','chest pain','palpitation','blood pressure','hypertension']],
+        ['Pediatrician', ['pediatric','paediatric','child','children','baby','infant','kids','my son','my daughter']],
+        ['Dermatologist', ['skin','dermatology','rash','acne','eczema','hair loss','itching','dermatologist']],
+        ['Orthopedic', ['orthopedic','bone','joint','fracture','knee','back pain','spine','shoulder','ortho']],
+        ['Neurologist', ['neuro','neurology','brain','migraine','headache','seizure','stroke','nerve','dizziness','vertigo','epilepsy']],
         ['General Physician', ['general','physician','fever','cold','flu','cough','checkup','gp','general medicine','diabetes','thyroid','infection','viral','weakness','fatigue']],
-        ['Family Medicine',   ['family','family medicine','family doctor','family clinic','all ages']],
-        ['Gynecologist',      ['gynecology','gynaecology','women','pregnancy','periods','menstrual','pcos','gynecologist']],
-        ['Oncologist',        ['cancer','oncology','tumor','chemotherapy','oncologist']],
+        ['Family Medicine', ['family','family medicine','family doctor','family clinic','all ages']],
+        ['Gynecologist', ['gynecology','gynaecology','women','pregnancy','periods','menstrual','pcos','gynecologist']],
+        ['Oncologist', ['cancer','oncology','tumor','chemotherapy','oncologist']],
         ['Gastroenterologist',['gastro','stomach','digestive','liver','gut','gastroenterologist','endoscopy']],
     ];
 
@@ -1102,14 +1067,14 @@ async function processVoiceQuery(transcript) {
     const results = await globalSearch(spec || transcript, spec || 'All', 'all', avail);
 
     if (!results.length) {
-        respEl.innerHTML = `😔 No results found for <strong>"${transcript}"</strong>.<br>
+        respEl.innerHTML = `No results found for <strong>"${transcript}"</strong>.<br>
           <span style="font-size:.82rem;color:#6b7280">Try saying a department like <em>"cardiology"</em>, or a hospital name like <em>"KIMS"</em>.</span>`;
         document.getElementById('voice-status').textContent = 'Tap to try again';
         return;
     }
 
     const av = results.filter(r => r.available).length;
-    respEl.innerHTML = `✅ Found <strong>${results.length}</strong> doctor${results.length!==1?'s':''}${spec?' — <strong>'+spec+'</strong>':''}. <strong>${av}</strong> available now.`;
+    respEl.innerHTML = `Found <strong>${results.length}</strong> doctor${results.length!==1?'s':''}${spec?' — <strong>'+spec+'</strong>':''}. <strong>${av}</strong> available now.`;
     document.getElementById('voice-status').textContent = 'Tap to search again';
 
     const rc = document.getElementById('voice-results');
@@ -1118,16 +1083,15 @@ async function processVoiceQuery(transcript) {
         <img src="${r.image||'https://i.pravatar.cc/150?img=20'}" alt="${r.name}" onerror="this.src='https://i.pravatar.cc/150?img=20'">
         <h4>${r.name}</h4>
         <p>${r.specialization}</p>
-        <p style="font-size:.72rem;opacity:.8">${r.entityType==='clinic'?'🏠':'🏥'} ${r.entityName}</p>
-        <span class="avail-badge ${r.available?'green':'red'}" style="margin-top:4px;font-size:.68rem">${r.available?'✅ Available':'🔴 Busy'}</span>
-      </div>`).join('');
+        <p style="font-size:.72rem;opacity:.8">${r.entityType==='clinic'?'':''} ${r.entityName}</p>
+        <span class="avail-badge ${r.available?'green':'red'}" style="margin-top:4px;font-size:.68rem">${r.available?'Available':'Busy'}</span></div>`).join('');
     rc.style.display = 'grid';
 }
 function startVoiceWithQuery(query) {
     killSpeech(); STATE._finalTranscript=query;
     document.getElementById('voice-transcript-box').style.display='block';
     document.getElementById('voice-transcript').textContent=query;
-    document.getElementById('voice-status').textContent='🔍 Processing...';
+    document.getElementById('voice-status').textContent='Processing...';
     processVoiceQuery(query);
 }
 
@@ -1146,18 +1110,18 @@ function switchDashTab(tab) {
     // Restart tab poll immediately so new tab gets data right away
     _POLL.start('hosp-tab', () => {
         const t = STATE.currentDashTab;
-        if (t === 'doctors')  renderDashDoctors();
-        else if (t === 'slots')    renderDashSlots();
+        if (t === 'doctors') renderDashDoctors();
+        else if (t === 'slots') renderDashSlots();
         else if (t === 'bookings') renderDashBookings();
     }, 20000);
     document.querySelectorAll('.dash-tab').forEach((t,i)=>{
         t.classList.toggle('active',['doctors','slots','bookings'][i]===tab);
     });
-    document.getElementById('dash-doctors-panel').style.display  = tab==='doctors'  ?'block':'none';
-    document.getElementById('dash-slots-panel').style.display    = tab==='slots'    ?'block':'none';
+    document.getElementById('dash-doctors-panel').style.display = tab==='doctors' ?'block':'none';
+    document.getElementById('dash-slots-panel').style.display = tab==='slots' ?'block':'none';
     document.getElementById('dash-bookings-panel').style.display = tab==='bookings' ?'block':'none';
-    if(tab==='doctors')  renderDashDoctors();
-    else if(tab==='slots')    renderDashSlots();
+    if(tab==='doctors') renderDashDoctors();
+    else if(tab==='slots') renderDashSlots();
     else if(tab==='bookings') renderDashBookings();
 }
 async function renderDashDoctors() {
@@ -1171,26 +1135,22 @@ async function renderDashDoctors() {
           <h3>${d.name}</h3>
           <span class="specialization-tag" style="font-size:.72rem">${d.specialization}</span>
           <div class="dashboard-doctor-actions">
-            <button class="btn-edit" onclick="showEditDoctorModal(${d.doctorId})">✏️ Edit</button>
-            <button class="btn-del"  onclick="showDeleteDoctorModal(${d.doctorId},'${d.name.replace(/'/g,"\\'")}')">🗑 Delete</button>
-          </div>
-        </div>
+            <button class="btn-edit" onclick="showEditDoctorModal(${d.doctorId})">Edit</button>
+            <button class="btn-del" onclick="showDeleteDoctorModal(${d.doctorId},'${d.name.replace(/'/g,"\\'")}')">Delete</button></div></div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
           <label class="toggle-switch">
             <input type="checkbox" ${d.available?'checked':''} onchange="toggleDoctorDB(${d.doctorId})">
             <span class="slider"></span>
           </label>
-          <span class="last-updated-ts">${relativeTime(d.lastUpdated)}</span>
-        </div>
-      </div>`).join('');
+          <span class="last-updated-ts">${relativeTime(d.lastUpdated)}</span></div></div>`).join('');
 }
 async function toggleDoctorDB(id) {
     try {
         await fetch(`${API_URL}/doctors/${id}/availability`,{method:'PATCH',headers:{'Content-Type':'application/json'}});
         // Refresh both the doctor list AND the stats counter at the top
         await Promise.all([renderDashDoctors(), refreshDashStats()]);
-        showToast('✅ Availability updated','success');
-    } catch(e){showToast('❌ Error updating','error');}
+        showToast('Availability updated','success');
+    } catch(e){showToast('Error updating','error');}
 }
 
 // ─── SLOT MANAGEMENT (with edit) ──────────────────────────
@@ -1213,10 +1173,10 @@ async function renderDashSlots() {
         if(!grouped[key]) grouped[key]=[];
         grouped[key].push(s);
     });
-    const localBookings=[];  // bookings now stored server-side only
+    const localBookings=[]; // bookings now stored server-side only
     let html='';
     Object.keys(grouped).forEach(docName=>{
-        html+=`<h4 style="font-size:.88rem;color:#0369a1;margin:12px 4px 6px;">👨‍⚕️ ${docName}</h4>`;
+        html+=`<h4 style="font-size:.88rem;color:#0369a1;margin:12px 4px 6px;"> ${docName}</h4>`;
         grouped[docName].forEach(slot=>{
             const d=new Date(slot.date+'T00:00:00');
             const dateLabel=d.toLocaleDateString('en-IN',{weekday:'short',month:'short',day:'numeric'});
@@ -1224,12 +1184,10 @@ async function renderDashSlots() {
             html+=`<div class="slot-manage-row">
               <div class="slot-info">
                 <div class="slot-date">${dateLabel} — ${fmtTime12(slot.time)}</div>
-                <div class="slot-meta">${slot.isActive?'🟢 Active':'🔴 Expired'}</div>
-              </div>
+                <div class="slot-meta">${slot.isActive?'Active':'Expired'}</div></div>
               <span class="slot-fill">${totalBooked}/${slot.maxBookings} booked</span>
-              <button class="btn-edit-slot" onclick="openEditSlotModal('${slot._id}','${slot.date}','${slot.time}',${slot.maxBookings})">✏️ Edit</button>
-              <button class="btn-del-slot"  onclick="deleteSlot('${slot._id}')">🗑</button>
-            </div>`;
+              <button class="btn-edit-slot" onclick="openEditSlotModal('${slot._id}','${slot.date}','${slot.time}',${slot.maxBookings})">Edit</button>
+              <button class="btn-del-slot" onclick="deleteSlot('${slot._id}')"></button></div>`;
         });
     });
     listEl.innerHTML=html;
@@ -1244,11 +1202,11 @@ async function addNewSlot() {
         const res=await fetch(`${API_URL}/slots`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({doctorId,hospitalId:STATE.currentHospitalId,date,time,maxBookings})});
         const data=await res.json();
         if(!res.ok){showToast(data.error||'Failed to add slot','error');return;}
-        showToast('✅ Slot added!','success'); await renderDashSlots();
+        showToast('Slot added!','success'); await renderDashSlots();
     } catch(e){showToast('Connection error.','error');}
 }
 async function deleteSlot(slotId) {
-    const ok = await showConfirmDialog({ title: 'Delete Slot', message: 'Remove this time slot? Any bookings on it may be affected.', okLabel: 'Delete', okColor: '#ef4444', icon: '🗑️' });
+    const ok = await showConfirmDialog({ title: 'Delete Slot', message: 'Remove this time slot? Any bookings on it may be affected.', okLabel: 'Delete', okColor: '#ef4444', icon: '' });
     if (!ok) return;
     await fetch(`${API_URL}/slots/${slotId}`,{method:'DELETE'});
     showToast('Slot removed',''); await renderDashSlots();
@@ -1263,7 +1221,7 @@ function openEditSlotModal(id, date, time, maxBookings) {
 }
 function closeEditSlotModal() { document.getElementById('edit-slot-modal').style.display='none'; }
 async function saveEditSlot() {
-    const id  =document.getElementById('edit-slot-id').value;
+    const id =document.getElementById('edit-slot-id').value;
     const date=document.getElementById('edit-slot-date').value;
     const time=document.getElementById('edit-slot-time').value;
     const max =parseInt(document.getElementById('edit-slot-max').value);
@@ -1271,7 +1229,7 @@ async function saveEditSlot() {
     try {
         const res=await fetch(`${API_URL}/slots/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({date,time,maxBookings:max})});
         if(!res.ok){const d=await res.json();showToast(d.error||'Failed to update','error');return;}
-        showToast('✅ Slot updated!','success'); closeEditSlotModal(); await renderDashSlots();
+        showToast('Slot updated!','success'); closeEditSlotModal(); await renderDashSlots();
     } catch(e){showToast('Connection error.','error');}
 }
 
@@ -1306,33 +1264,27 @@ async function renderDashBookings() {
         <div class="booking-header">
           <span class="booking-id">#${b.bookingId}</span>
           <span class="booking-datetime">${b.date} at ${fmtTime12(b.time)}</span>
-          <span class="booking-status-badge ${displayStatus}" style="font-size:.7rem;padding:2px 8px">${statusLabel}</span>
-        </div>
-        <div style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:3px 10px;margin-bottom:6px;font-size:.78rem;font-weight:600;color:#1d4ed8">
-          🗓 Booked Slot: ${b.date} &nbsp;•&nbsp; ${fmtTime12(b.time)}
-        </div>
+          <span class="booking-status-badge ${displayStatus}" style="font-size:.7rem;padding:2px 8px">${statusLabel}</span></div>
+        <div style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:3px 10px;margin-bottom:6px;font-size:.78rem;font-weight:600;color:#1d4ed8">Booked Slot: ${b.date} &nbsp;•&nbsp; ${fmtTime12(b.time)}</div>
         <div class="booking-patient" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${b.patientName}${b.patientAge?`<span style="font-size:.78rem;color:#64748b">(Age: ${b.patientAge})</span>`:''}
-          <button onclick="showPatientHistory('${b.patientName}','${b.patientId||''}')" style="font-size:.7rem;padding:2px 8px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600">📋 History</button>
-        </div>
-        <div class="booking-details">📞 ${b.patientContact||'—'}</div>
-        <div class="booking-details">👨‍⚕️ ${b.doctorName}</div>
-        ${b.patientDescription?`<div class="booking-details" style="font-style:italic">📝 ${b.patientDescription}</div>`:''}
+          <button onclick="showPatientHistory('${b.patientName}','${b.patientId||''}')" style="font-size:.7rem;padding:2px 8px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600">History</button></div>
+        <div class="booking-details"> ${b.patientContact||'—'}</div>
+        <div class="booking-details"> ${b.doctorName}</div>
+        ${b.patientDescription?`<div class="booking-details" style="font-style:italic"> ${b.patientDescription}</div>`:''}
         ${!isCancelled && !isCompleted ? `<div style="display:flex;justify-content:flex-end;margin-top:8px">
-          <button class="btn-cancel-booking" onclick="cancelServerBooking('${b._id}')">Cancel</button>
-        </div>` : ''}
-      </div>`;
+          <button class="btn-cancel-booking" onclick="cancelServerBooking('${b._id}')">Cancel</button></div>` : ''}</div>`;
     }).join('');
 }
 async function cancelServerBooking(id) {
-    const ok = await showConfirmDialog({ title: 'Cancel Booking', message: 'Are you sure you want to cancel this appointment?', okLabel: 'Yes, Cancel', okColor: '#f59e0b', icon: '⚠️' });
+    const ok = await showConfirmDialog({ title: 'Cancel Booking', message: 'Are you sure you want to cancel this appointment?', okLabel: 'Yes, Cancel', okColor: '#f59e0b', icon: '' });
     if (!ok) return;
     await fetch(`${API_URL}/bookings/${id}`,{method:'DELETE'});
     await renderDashBookings(); showToast('Booking cancelled','');
 }
 // Clear ALL booking history for hospital dashboard
 async function clearHospitalBookingHistory() {
-    const ok = await showConfirmDialog({ title: 'Clear All History', message: 'Clears cancelled and past bookings. Active upcoming bookings will not be removed.', okLabel: 'Clear History', okColor: '#ef4444', icon: '🗑️' });
+    const ok = await showConfirmDialog({ title: 'Clear All History', message: 'Clears cancelled and past bookings. Active upcoming bookings will not be removed.', okLabel: 'Clear History', okColor: '#ef4444', icon: '' });
     if (!ok) return;
     try {
         const bookings = await fetchBookingsForHospital(STATE.currentHospitalId);
@@ -1341,10 +1293,10 @@ async function clearHospitalBookingHistory() {
         await Promise.all(clearable.map(b => fetch(`${API_URL}/bookings/${b._id}/hard`, { method: 'DELETE' })));
     } catch(e) {}
     renderDashBookings();
-    showToast('🗑 Booking history cleared', 'success');
+    showToast('Booking history cleared', 'success');
 }
 async function clearClinicBookingHistory() {
-    const ok = await showConfirmDialog({ title: 'Clear Clinic History', message: 'Clears cancelled and past bookings. Active upcoming bookings will not be removed.', okLabel: 'Clear History', okColor: '#ef4444', icon: '🗑️' });
+    const ok = await showConfirmDialog({ title: 'Clear Clinic History', message: 'Clears cancelled and past bookings. Active upcoming bookings will not be removed.', okLabel: 'Clear History', okColor: '#ef4444', icon: '' });
     if (!ok) return;
     try {
         const bookings = await apiFetch('/bookings/clinic/' + STATE.currentClinicId);
@@ -1360,24 +1312,23 @@ async function clearClinicBookingHistory() {
     });
     saveAllBookings(filtered);
     renderBookingsForClinic(STATE.currentClinicId);
-    showToast('🗑 Booking history cleared', 'success');
+    showToast('Booking history cleared', 'success');
 }
 
 // ─── CLINIC DASHBOARD ─────────────────────────────────────
 async function renderClinicDashboard() {
     const id=STATE.currentClinicId;
     const clinic=await fetchClinicById(id);
-    if(!clinic){showToast('❌ Clinic not found','error');return;}
+    if(!clinic){showToast('Clinic not found','error');return;}
     document.getElementById('clinic-dash-name').textContent=clinic.name;
     document.getElementById('clinic-dash-location').textContent=clinic.location;
     const content=document.getElementById('clinic-dashboard-content');
     const today=todayStr();
     content.innerHTML=`
       <div class="dash-tabs">
-        <button class="dash-tab active" id="clinic-tab-profile" onclick="switchClinicTab('profile')">🏠 Profile</button>
-        <button class="dash-tab" id="clinic-tab-slots" onclick="switchClinicTab('slots')">🕐 Time Slots</button>
-        <button class="dash-tab" id="clinic-tab-bookings" onclick="switchClinicTab('bookings')">📅 Bookings</button>
-      </div>
+        <button class="dash-tab active" id="clinic-tab-profile" onclick="switchClinicTab('profile')">Profile</button>
+        <button class="dash-tab" id="clinic-tab-slots" onclick="switchClinicTab('slots')">Time Slots</button>
+        <button class="dash-tab" id="clinic-tab-bookings" onclick="switchClinicTab('bookings')">Bookings</button></div>
       <!-- Profile Tab -->
       <div id="clinic-panel-profile" style="display:block;">
         <div class="clinic-profile-card">
@@ -1385,56 +1336,43 @@ async function renderClinicDashboard() {
             <img src="${clinic.image||'https://i.pravatar.cc/150?img=50'}" class="clinic-profile-img" alt="${clinic.doctorName}">
             <div class="clinic-profile-info">
               <h3>${clinic.doctorName}</h3>
-              <p>🩺 ${clinic.specialization}</p><p>📍 ${clinic.address}</p><p>⏰ ${clinic.timings}</p>
-            </div>
-          </div>
+              <p> ${clinic.specialization}</p><p> ${clinic.address}</p><p>⏰ ${clinic.timings}</p></div></div>
           <div class="clinic-stats-mini">
             <div class="clinic-stat-item"><span class="clinic-stat-num">⭐ ${clinic.rating}</span><span class="clinic-stat-lbl">Rating</span></div>
             <div class="clinic-stat-item"><span class="clinic-stat-num">${clinic.experience||'N/A'}</span><span class="clinic-stat-lbl">Experience</span></div>
-            <div class="clinic-stat-item"><span class="clinic-stat-num">${clinic.consultationFee}</span><span class="clinic-stat-lbl">Fee</span></div>
-          </div>
-        </div>
+            <div class="clinic-stat-item"><span class="clinic-stat-num">${clinic.consultationFee}</span><span class="clinic-stat-lbl">Fee</span></div></div></div>
         <div class="clinic-avail-toggle-wrap">
-          <div><p>Availability Status</p><span>${clinic.available?'✅ Currently accepting patients':'❌ Not accepting patients'}</span></div>
+          <div><p>Availability Status</p><span>${clinic.available?'Currently accepting patients':'Not accepting patients'}</span></div>
           <label class="toggle-switch">
             <input type="checkbox" ${clinic.available?'checked':''} onchange="toggleClinicAvailability(${clinic.clinicId})">
             <span class="slider"></span>
-          </label>
-        </div>
+          </label></div>
         <div style="padding:0 16px 8px">
           <div style="background:white;border-radius:var(--radius);padding:16px;box-shadow:var(--shadow-sm)">
-            <h4 style="margin-bottom:10px;font-size:.95rem">📞 Contact</h4>
+            <h4 style="margin-bottom:10px;font-size:.95rem">Contact</h4>
             <p style="font-size:.88rem;color:var(--gray-600)">Phone: ${clinic.phone||'N/A'}</p>
-            <p style="font-size:.88rem;color:var(--gray-600);margin-top:5px">Email: ${clinic.email||'N/A'}</p>
-          </div>
-        </div>
-      </div>
+            <p style="font-size:.88rem;color:var(--gray-600);margin-top:5px">Email: ${clinic.email||'N/A'}</p></div></div></div>
       <!-- Slots Tab -->
       <div id="clinic-panel-slots" style="display:none;">
         <div class="add-slot-form">
-          <h4>➕ Add New Time Slot</h4>
+          <h4>Add New Time Slot</h4>
           <div class="slot-form-row">
             <div><label style="font-size:.78rem;font-weight:600;color:#0369a1;">Date</label><input type="date" id="clinic-slot-date" min="${today}" value="${today}"></div>
             <div><label style="font-size:.78rem;font-weight:600;color:#0369a1;">Time</label><input type="time" id="clinic-slot-time"></div>
-            <div><label style="font-size:.78rem;font-weight:600;color:#0369a1;">Max Patients</label><input type="number" id="clinic-slot-max" value="5" min="1" max="50"></div>
-          </div>
-          <button class="btn-add-slot" onclick="addClinicSlot(${clinic.clinicId})">Add Slot</button>
-        </div>
-        <div id="clinic-slots-list" style="padding:0 4px;"></div>
-      </div>
+            <div><label style="font-size:.78rem;font-weight:600;color:#0369a1;">Max Patients</label><input type="number" id="clinic-slot-max" value="5" min="1" max="50"></div></div>
+          <button class="btn-add-slot" onclick="addClinicSlot(${clinic.clinicId})">Add Slot</button></div>
+        <div id="clinic-slots-list" style="padding:0 4px;"></div></div>
       <!-- Bookings Tab -->
       <div id="clinic-panel-bookings" style="display:none;">
         <div style="padding:12px 16px 0;">
-          <button class="btn-clear-history" onclick="clearClinicBookingHistory()">🗑 Clear All Booking History</button>
-        </div>
-        <div id="clinic-bookings-list" class="bookings-list"><div class="no-bookings-msg">No bookings yet</div></div>
-      </div>`;
+          <button class="btn-clear-history" onclick="clearClinicBookingHistory()">Clear All Booking History</button></div>
+        <div id="clinic-bookings-list" class="bookings-list"><div class="no-bookings-msg">No bookings yet</div></div></div>`;
 }
 async function toggleClinicAvailability(id) {
     try{
         await fetch(`${API_URL}/clinics/${id}/availability`,{method:'PATCH',headers:{'Content-Type':'application/json'}});
-        renderClinicDashboard(); showToast('✅ Availability updated','success');
-    }catch(e){showToast('❌ Error','error');}
+        renderClinicDashboard(); showToast('Availability updated','success');
+    }catch(e){showToast('Error','error');}
 }
 
 // ─── CLINIC SLOT MANAGEMENT ───────────────────────────────
@@ -1451,12 +1389,10 @@ async function renderClinicSlots(clinicId) {
         return `<div class="slot-manage-row">
           <div class="slot-info">
             <div class="slot-date">${dateLabel} — ${fmtTime12(slot.time)}</div>
-            <div class="slot-meta">${slot.isActive?'🟢 Active':'🔴 Expired'}</div>
-          </div>
+            <div class="slot-meta">${slot.isActive?'Active':'Expired'}</div></div>
           <span class="slot-fill">${slot.currentBookings}/${slot.maxBookings} booked</span>
-          <button class="btn-edit-slot" onclick="openEditSlotModal('${slot._id}','${slot.date}','${slot.time}',${slot.maxBookings})">✏️ Edit</button>
-          <button class="btn-del-slot" onclick="deleteClinicSlot('${slot._id}',${clinicId})">🗑</button>
-        </div>`;
+          <button class="btn-edit-slot" onclick="openEditSlotModal('${slot._id}','${slot.date}','${slot.time}',${slot.maxBookings})">Edit</button>
+          <button class="btn-del-slot" onclick="deleteClinicSlot('${slot._id}',${clinicId})"></button></div>`;
     }).join('');
 }
 async function addClinicSlot(clinicId) {
@@ -1467,11 +1403,11 @@ async function addClinicSlot(clinicId) {
     try{
         const res=await fetch(`${API_URL}/slots`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({doctorId:clinicId,date,time,maxBookings:max})});
         if(!res.ok){const d=await res.json();showToast(d.error||'Failed to add slot','error');return;}
-        showToast('✅ Slot added!','success'); await renderClinicSlots(clinicId);
+        showToast('Slot added!','success'); await renderClinicSlots(clinicId);
     }catch(e){showToast('Connection error.','error');}
 }
 async function deleteClinicSlot(slotId, clinicId) {
-    const ok = await showConfirmDialog({ title: 'Delete Slot', message: 'Remove this time slot? Any bookings on it may be affected.', okLabel: 'Delete', okColor: '#ef4444', icon: '🗑️' });
+    const ok = await showConfirmDialog({ title: 'Delete Slot', message: 'Remove this time slot? Any bookings on it may be affected.', okLabel: 'Delete', okColor: '#ef4444', icon: '' });
     if (!ok) return;
     await fetch(`${API_URL}/slots/${slotId}`,{method:'DELETE'});
     showToast('Slot removed',''); await renderClinicSlots(clinicId);
@@ -1502,7 +1438,7 @@ function showAddDoctorModal() {
 }
 async function showEditDoctorModal(doctorId) {
     const d=await fetchDoctorById(doctorId);
-    if(!d){showToast('❌ Could not load doctor','error');return;}
+    if(!d){showToast('Could not load doctor','error');return;}
     document.getElementById('modal-title').textContent='Edit Doctor';
     document.getElementById('doctor-id').value=d.doctorId;
     document.getElementById('is-editing').value='true';
@@ -1524,7 +1460,7 @@ async function saveDoctorForm(e) {
     const isEdit=document.getElementById('is-editing').value==='true';
     const doctorId=document.getElementById('doctor-id').value;
     const hosp=STATE.hospitals.find(h=>h.id===STATE.currentHospitalId);
-    if(!hosp){showToast('❌ Hospital not found','error');return;}
+    if(!hosp){showToast('Hospital not found','error');return;}
     const data={
         name:document.getElementById('doctor-name').value,
         specialization:document.getElementById('doctor-specialization').value,
@@ -1542,16 +1478,16 @@ async function saveDoctorForm(e) {
     try {
         if(isEdit){
             await fetch(`${API_URL}/doctors/${doctorId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-            showToast('✅ Doctor updated!','success');
+            showToast('Doctor updated!','success');
         } else {
             const allDocs=await apiFetch('/doctors').catch(()=>[]);
             const maxId=allDocs.length?Math.max(...allDocs.map(d=>d.doctorId)):0;
             data.doctorId=maxId+1;
             await fetch(`${API_URL}/doctors`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-            showToast('✅ Doctor added!','success');
+            showToast('Doctor added!','success');
         }
         closeDoctorModal(); renderHospitalDashboard();
-    } catch(err){showToast('❌ Error saving doctor','error');}
+    } catch(err){showToast('Error saving doctor','error');}
 }
 function showDeleteDoctorModal(id,name){STATE.deletingDoctorId=id;document.getElementById('delete-doctor-name').textContent=name;document.getElementById('delete-modal').style.display='flex';}
 function closeDeleteModal(){document.getElementById('delete-modal').style.display='none';STATE.deletingDoctorId=null;}
@@ -1559,13 +1495,13 @@ async function confirmDeleteDoctor() {
     if(!STATE.deletingDoctorId) return;
     try{
         await fetch(`${API_URL}/doctors/${STATE.deletingDoctorId}`,{method:'DELETE'});
-        showToast('✅ Doctor deleted','success'); closeDeleteModal(); renderHospitalDashboard();
-    }catch(e){showToast('❌ Error deleting','error');}
+        showToast('Doctor deleted','success'); closeDeleteModal(); renderHospitalDashboard();
+    }catch(e){showToast('Error deleting','error');}
 }
 window.onclick=(e)=>{
-    if(e.target===document.getElementById('doctor-modal'))   closeDoctorModal();
-    if(e.target===document.getElementById('delete-modal'))   closeDeleteModal();
-    if(e.target===document.getElementById('booking-modal'))  closeBookingModal();
+    if(e.target===document.getElementById('doctor-modal')) closeDoctorModal();
+    if(e.target===document.getElementById('delete-modal')) closeDeleteModal();
+    if(e.target===document.getElementById('booking-modal')) closeBookingModal();
     if(e.target===document.getElementById('edit-slot-modal'))closeEditSlotModal();
 };
 
@@ -1582,19 +1518,19 @@ function isBookingClearable(b) {
     if (!sy) return false;
     return new Date(sy, smo - 1, sd, sh, sm, 0, 0) < new Date();
 }
-function getAllBookings()      { try{return JSON.parse(localStorage.getItem(BOOKINGS_KEY)||'[]');}catch{return[];} }
+function getAllBookings() { try{return JSON.parse(localStorage.getItem(BOOKINGS_KEY)||'[]');}catch{return[];} }
 function saveAllBookings(arr) { try{localStorage.setItem(BOOKINGS_KEY,JSON.stringify(arr));}catch(e){} }
-function getHiddenBookingIds()        { try{return JSON.parse(localStorage.getItem(HIDDEN_BOOKINGS_KEY)||'[]');}catch{return[];} }
-function hideServerBookingId(id)      { const h=getHiddenBookingIds(); if(!h.includes(id)){h.push(id);localStorage.setItem(HIDDEN_BOOKINGS_KEY,JSON.stringify(h));} }
-function clearHiddenBookingIds(ids)   { const h=getHiddenBookingIds().filter(id=>!ids.includes(id)); localStorage.setItem(HIDDEN_BOOKINGS_KEY,JSON.stringify(h)); }
-function clearAllHiddenBookingIds()   { localStorage.setItem(HIDDEN_BOOKINGS_KEY,JSON.stringify([])); }
+function getHiddenBookingIds() { try{return JSON.parse(localStorage.getItem(HIDDEN_BOOKINGS_KEY)||'[]');}catch{return[];} }
+function hideServerBookingId(id) { const h=getHiddenBookingIds(); if(!h.includes(id)){h.push(id);localStorage.setItem(HIDDEN_BOOKINGS_KEY,JSON.stringify(h));} }
+function clearHiddenBookingIds(ids) { const h=getHiddenBookingIds().filter(id=>!ids.includes(id)); localStorage.setItem(HIDDEN_BOOKINGS_KEY,JSON.stringify(h)); }
+function clearAllHiddenBookingIds() { localStorage.setItem(HIDDEN_BOOKINGS_KEY,JSON.stringify([])); }
 
 let BSTATE = { doctor:null, selectedDate:null, selectedTime:null, selectedTime24:null, selectedSlotId:null };
 
 async function openBookingModal(doctor) {
     // Require patient login before booking
     if (!STATE.currentPatient) {
-        showToast('⚠️ Please log in to book an appointment', 'error');
+        showToast('Please log in to book an appointment', 'error');
         setTimeout(() => navigateToScreen('patient-login'), 600);
         return;
     }
@@ -1625,7 +1561,7 @@ async function openBookingModal(doctor) {
             });
             if (upcomingBooked.length && dupWarn) {
                 const dates = upcomingBooked.map(b => b.date).join(', ');
-                dupWarn.textContent = `⚠️ You already have ${upcomingBooked.length} upcoming booking(s) with this doctor on: ${dates}`;
+                dupWarn.textContent = `You already have ${upcomingBooked.length} upcoming booking(s) with this doctor on: ${dates}`;
                 dupWarn.style.display = 'block';
             }
         } catch(e) {}
@@ -1654,8 +1590,7 @@ async function openBookingModal(doctor) {
           <span class="day-num">${d.getDate()}</span>
           <span style="font-size:.6rem;opacity:.7">${months[d.getMonth()]}</span>
           ${hasSlots?`<span style="font-size:.55rem;color:#10b981;font-weight:700">OPEN</span>`:
-                     `<span style="font-size:.55rem;opacity:.5">–</span>`}
-        </button>`;
+                     `<span style="font-size:.55rem;opacity:.5">–</span>`}</button>`;
     }
     document.getElementById('booking-date-grid').innerHTML=dhtml;
     const startDate=firstAvailIdx>=0
@@ -1724,9 +1659,8 @@ async function renderTimeSlots() {
         return `<button class="booking-time-btn ${full?'booked':''}"
           onclick="selectBookingTime(this,'${s.time}','${label}','${s._id}')"
           ${full?'disabled':''}>
-          ${full?'✗ Full':label}
-          ${!full?`<span style="font-size:.65rem;opacity:.7;display:block">${remaining} left</span>`:''}
-        </button>`;
+          ${full?'Full':label}
+          ${!full?`<span style="font-size:.65rem;opacity:.7;display:block">${remaining} left</span>`:''}</button>`;
     }).join('');
 }
 function selectBookingTime(btn,time24,label,slotId){
@@ -1744,10 +1678,10 @@ async function confirmBooking() {
     const patientPhone = document.getElementById('booking-patient-phone')?.value.trim() || STATE.currentPatient?.phone || '';
     // ── Validation ─────────────────────────────────────────────────────────
     if (!patientName || patientName.length < 2) {
-        showToast('⚠️ Please enter your full name (at least 2 characters)', 'error'); return;
+        showToast('Please enter your full name (at least 2 characters)', 'error'); return;
     }
     if (patientPhone && !/^[0-9+\s\-()]{7,15}$/.test(patientPhone)) {
-        showToast('⚠️ Please enter a valid phone number', 'error'); return;
+        showToast('Please enter a valid phone number', 'error'); return;
     }
     // ── End validation ──────────────────────────────────────────────────────
     const btn = document.getElementById('confirm-booking-btn');
@@ -1775,7 +1709,7 @@ async function confirmBooking() {
                 return slotTime > now;
             });
             if (duplicate) {
-                showToast(`⚠️ You already have a booking for this exact time slot with ${doctor.name}. Please choose a different time.`, 'error');
+                showToast(`You already have a booking for this exact time slot with ${doctor.name}. Please choose a different time.`, 'error');
                 btn.disabled = false; btn.textContent = 'Confirm Booking';
                 return;
             }
@@ -1784,12 +1718,12 @@ async function confirmBooking() {
 
         const isClinic = !!doctor.isClinic;
         const payload = {
-            patientId:   STATE.currentPatient?.id || null,
+            patientId: STATE.currentPatient?.id || null,
             patientName,
             patientContact: patientPhone,
-            patientAge:     STATE.currentPatient?.age || null,
+            patientAge: STATE.currentPatient?.age || null,
             patientDescription: document.getElementById('booking-reason')?.value.trim() || '',
-            doctorId:   doctor.doctorId || doctor.id,
+            doctorId: doctor.doctorId || doctor.id,
             // For clinics: store clinicId as doctorId (already is) and hospitalId as 0
             // The /bookings/clinic/:id route finds by doctorId == clinicId
             // Resolve hospitalId with multiple fallbacks to ensure it's never 0 for hospital doctors
@@ -1801,7 +1735,7 @@ async function confirmBooking() {
                 // Last resort: look up from slots cache
                 (() => { try { const s = BSTATE._slotsCache?.find(sl => sl._id === BSTATE.selectedSlotId); return s?.hospitalId || 0; } catch(e) { return 0; } })()
             ),
-            slotId:     BSTATE.selectedSlotId
+            slotId: BSTATE.selectedSlotId
         };
 
         if (!payload.slotId) {
@@ -1831,11 +1765,11 @@ async function confirmBooking() {
                 body: JSON.stringify(payload)
             });
             const data = await result.json();
-            if (!result.ok) { showToast('❌ ' + (data.error||'Booking failed'), 'error'); btn.disabled=false; btn.textContent='Confirm Booking'; return; }
+            if (!result.ok) { showToast(data.error||'Booking failed', 'error'); btn.disabled=false; btn.textContent='Confirm Booking'; return; }
         }
         closeBookingModal();
         if (STATE.currentScreen==='hospital-dashboard') renderHospitalDashboard();
-        if (STATE.currentScreen==='clinic-dashboard')   renderClinicDashboard();
+        if (STATE.currentScreen==='clinic-dashboard') renderClinicDashboard();
         await renderTimeSlots();
         // Show booking confirmation details
         showBookingConfirmation({
@@ -1848,7 +1782,7 @@ async function confirmBooking() {
             patientPhone
         });
     } catch(e) {
-        showToast('❌ Booking failed. Try again.', 'error');
+        showToast('Booking failed. Try again.', 'error');
     }
     btn.disabled = false; btn.innerHTML = 'Confirm Booking';
 }
@@ -1872,14 +1806,12 @@ async function renderPatientBookings() {
         _serverId: b._id, image: ''
     })), ...localBookings];
     let header = `<div style="width:100%;margin-bottom:8px;text-align:right">
-      <button class="btn-clear-history-subtle" onclick="clearPatientBookingHistory()" title="Remove past and cancelled bookings">🗑 Clear History</button>
-    </div>`;
+      <button class="btn-clear-history-subtle" onclick="clearPatientBookingHistory()" title="Remove past and cancelled bookings">Clear History</button></div>`;
     if (!all.length) { c.innerHTML = header + `<div class="no-bookings-empty">
-        <div style="font-size:3.5rem;margin-bottom:12px">🗓️</div>
+        <div class="empty-state-mark">EMPTY</div>
         <h3 style="font-weight:700;color:var(--dark);margin-bottom:8px">No appointments yet</h3>
         <p style="color:var(--gray-400);font-size:.88rem;max-width:240px;margin:0 auto;line-height:1.5">Browse hospitals or clinics and tap <strong>Book Appointment</strong> to get started.</p>
-        <button onclick="switchTab('hospitals')" style="margin-top:18px;padding:10px 24px;background:var(--primary);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:.9rem">Browse Hospitals →</button>
-    </div>`; return; }
+        <button onclick="switchTab('hospitals')" style="margin-top:18px;padding:10px 24px;background:var(--primary);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:.9rem">Browse Hospitals →</button></div>`; return; }
     // Sort by appointment date ascending (soonest first), cancelled/past at bottom
     const now = new Date();
     const sorted = [...all].sort((a, b) => {
@@ -1890,7 +1822,7 @@ async function renderPatientBookings() {
     c.innerHTML = header + sorted.map(b => renderBookingCard(b, 'patient')).join('');
 }
 async function clearPatientBookingHistory() {
-    const ok = await showConfirmDialog({ title: 'Clear Booking History', message: 'Clears cancelled and past bookings. Active upcoming bookings will not be removed.', okLabel: 'Clear History', okColor: '#ef4444', icon: '🗑️' });
+    const ok = await showConfirmDialog({ title: 'Clear Booking History', message: 'Clears cancelled and past bookings. Active upcoming bookings will not be removed.', okLabel: 'Clear History', okColor: '#ef4444', icon: '' });
     if (!ok) return;
     const pid = STATE.currentPatient?.id;
     if (pid) {
@@ -1911,7 +1843,7 @@ async function clearPatientBookingHistory() {
     });
     saveAllBookings(remaining);
     renderPatientBookings();
-    showToast('🗑 Booking history cleared', 'success');
+    showToast('Booking history cleared', 'success');
 }
 async function renderBookingsForClinic(clinicId) {
     const listEl = document.getElementById('clinic-bookings-list');
@@ -1934,18 +1866,14 @@ async function renderBookingsForClinic(clinicId) {
         <div class="booking-header">
           <span class="booking-id">#${b.bookingId}</span>
           <span class="booking-datetime">${b.date} at ${fmtTime12(b.time)}</span>
-          <span class="booking-status-badge ${displayStatus}" style="font-size:.7rem;padding:2px 8px">${statusLabel}</span>
-        </div>
+          <span class="booking-status-badge ${displayStatus}" style="font-size:.7rem;padding:2px 8px">${statusLabel}</span></div>
         <div class="booking-patient" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${b.patientName}
-          <button onclick="showPatientHistory('${b.patientName}','${b.patientId||''}')" style="font-size:.7rem;padding:2px 8px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600">📋 History</button>
-        </div>
-        <div class="booking-details">📞 ${b.patientContact||'—'}</div>
-        ${b.patientDescription?`<div class="booking-details" style="font-style:italic">📝 ${b.patientDescription}</div>`:''}
+          <button onclick="showPatientHistory('${b.patientName}','${b.patientId||''}')" style="font-size:.7rem;padding:2px 8px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600">History</button></div>
+        <div class="booking-details"> ${b.patientContact||'—'}</div>
+        ${b.patientDescription?`<div class="booking-details" style="font-style:italic"> ${b.patientDescription}</div>`:''}
         ${!isCancelled && !isCompleted ? `<div style="display:flex;justify-content:flex-end;margin-top:8px">
-          <button class="btn-cancel-booking" onclick="cancelServerBooking('${b._id}')">Cancel</button>
-        </div>` : ''}
-      </div>`;
+          <button class="btn-cancel-booking" onclick="cancelServerBooking('${b._id}')">Cancel</button></div>` : ''}</div>`;
     }).join('');
 }
 function renderBookingCard(b, context='patient') {
@@ -1970,7 +1898,7 @@ function renderBookingCard(b, context='patient') {
     const showRemove = status === 'cancelled' || isPast;
     const now2 = new Date();
     const todayMid = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate());
-    const apptMid  = new Date(sy, smo-1, sdy);
+    const apptMid = new Date(sy, smo-1, sdy);
     const diffDays = Math.round((apptMid - todayMid) / 86400000);
     let urgencyBadge = '';
     if (status !== 'cancelled' && !isPast) {
@@ -1982,29 +1910,25 @@ function renderBookingCard(b, context='patient') {
       <div class="booking-card-date">
         <span class="bk-month">${months[d.getMonth()]}</span>
         <span class="bk-day">${d.getDate()}</span>
-        ${urgencyBadge}
-      </div>
+        ${urgencyBadge}</div>
       <div class="booking-card-info">
         <h4>${b.doctorName}</h4>
         <p>${b.specialization||''}</p>
-        <span class="booking-time-pill">🕐 ${b.time}</span>
+        <span class="booking-time-pill"> ${b.time}</span>
         <p style="margin-top:4px;font-size:.78rem;color:var(--gray-400)">${b.reason||b.patientDescription||''}</p>
-        <p style="font-size:.78rem;color:var(--gray-500)">🏥 ${b.entityName||b.hospitalName||''}</p>
-        <p style="font-size:.72rem;color:var(--gray-400)">Booked: ${fmtDateTime(b.createdAt)}</p>
-      </div>
+        <p style="font-size:.78rem;color:var(--gray-500)"> ${b.entityName||b.hospitalName||''}</p>
+        <p style="font-size:.72rem;color:var(--gray-400)">Booked: ${fmtDateTime(b.createdAt)}</p></div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
         <span class="booking-status-badge ${displayStatus}">${displayStatus.charAt(0).toUpperCase()+displayStatus.slice(1)}</span>
         ${status !== 'cancelled' && !isPast && sid
-            ? `<button class="booking-reschedule-btn" onclick="openRescheduleModal('${sid}')">🔄 Reschedule</button>`
+            ? `<button class="booking-reschedule-btn" onclick="openRescheduleModal('${sid}')">Reschedule</button>`
             : ''}
         ${status !== 'cancelled' && !isCompleted
             ? `<button class="booking-cancel-btn" onclick="${cancelFn}">Cancel</button>`
             : ''}
         ${showRemove
-            ? `<button class="booking-remove-btn" onclick="${removeFn}">🗑 Remove</button>`
-            : ''}
-      </div>
-    </div>`;
+            ? `<button class="booking-remove-btn" onclick="${removeFn}">Remove</button>`
+            : ''}</div></div>`;
 }
 // ── RESCHEDULE ──────────────────────────────────────────────────────────────
 async function openRescheduleModal(serverId) {
@@ -2015,7 +1939,7 @@ async function openRescheduleModal(serverId) {
         const all = await apiFetch('/bookings/patient/' + STATE.currentPatient.id);
         booking = all.find(b => b._id === serverId);
     } catch(e) {}
-    if (!booking) { showToast('❌ Could not load booking', 'error'); return; }
+    if (!booking) { showToast('Could not load booking', 'error'); return; }
     // Reuse booking modal but in reschedule mode
     BSTATE.doctor = {
         doctorId: booking.doctorId,
@@ -2049,8 +1973,7 @@ async function openRescheduleModal(serverId) {
           <span class="day-name">${days[d.getDay()]}</span>
           <span class="day-num">${d.getDate()}</span>
           <span style="font-size:.6rem;opacity:.7">${months[d.getMonth()]}</span>
-          ${hasSlots?`<span style="font-size:.55rem;color:#10b981;font-weight:700">OPEN</span>`:`<span style="font-size:.55rem;opacity:.5">–</span>`}
-        </button>`;
+          ${hasSlots?`<span style="font-size:.55rem;color:#10b981;font-weight:700">OPEN</span>`:`<span style="font-size:.55rem;opacity:.5">–</span>`}</button>`;
     }
     document.getElementById('booking-date-grid').innerHTML = dhtml;
     const startDate = firstAvailIdx>=0 ? new Date(now.getTime()+firstAvailIdx*86400000).toISOString().split('T')[0] : now.toISOString().split('T')[0];
@@ -2074,12 +1997,12 @@ async function confirmReschedule(serverId) {
             body: JSON.stringify({ newSlotId: BSTATE.selectedSlotId })
         });
         const data = await res.json();
-        if (!res.ok) { showToast('❌ ' + (data.error||'Reschedule failed'), 'error'); btn.disabled=false; btn.innerHTML='Confirm Reschedule'; return; }
+        if (!res.ok) { showToast(data.error||'Reschedule failed', 'error'); btn.disabled=false; btn.innerHTML='Confirm Reschedule'; return; }
         closeBookingModal();
-        showToast('✅ Appointment rescheduled!', 'success');
+        showToast('Appointment rescheduled!', 'success');
         renderPatientBookings();
     } catch(e) {
-        showToast('❌ Reschedule failed. Try again.', 'error');
+        showToast('Reschedule failed. Try again.', 'error');
     }
     btn.disabled = false; btn.innerHTML = 'Confirm Reschedule';
     // Reset modal back to normal booking mode
@@ -2109,10 +2032,10 @@ async function showPatientHistory(patientName, patientId) {
     } catch(e) {}
     const modal = document.getElementById('confirm-dialog');
     const title = document.getElementById('confirm-dialog-title');
-    const msg   = document.getElementById('confirm-dialog-msg');
-    const icon  = document.getElementById('confirm-dialog-icon');
+    const msg = document.getElementById('confirm-dialog-msg');
+    const icon = document.getElementById('confirm-dialog-icon');
     const okBtn = document.getElementById('confirm-dialog-ok');
-    icon.textContent  = '👤';
+    icon.textContent = '';
     title.textContent = patientName + "'s Booking History";
     if (!bookings.length) {
         msg.innerHTML = '<em style="color:#94a3b8">No booking history found.</em>';
@@ -2121,8 +2044,7 @@ async function showPatientHistory(patientName, patientId) {
             <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:.82rem">
                 <strong>${b.date} at ${fmtTime12(b.time)}</strong> — ${b.doctorName}<br>
                 <span style="color:#64748b">${b.hospitalName||''}</span>
-                <span class="booking-status-badge ${b.status||'confirmed'}" style="font-size:.65rem;padding:1px 6px;margin-left:6px">${(b.status||'confirmed').charAt(0).toUpperCase()+(b.status||'confirmed').slice(1)}</span>
-            </div>`).join('');
+                <span class="booking-status-badge ${b.status||'confirmed'}" style="font-size:.65rem;padding:1px 6px;margin-left:6px">${(b.status||'confirmed').charAt(0).toUpperCase()+(b.status||'confirmed').slice(1)}</span></div>`).join('');
     }
     okBtn.textContent = 'Close';
     okBtn.style.background = '#3b82f6';
@@ -2136,17 +2058,17 @@ async function showPatientHistory(patientName, patientId) {
 }
 
 async function removeBooking(id, context='patient') {
-    const ok = await showConfirmDialog({ title: 'Remove Booking', message: 'Remove this booking from your history? This cannot be undone.', okLabel: '🗑 Remove', okColor: '#ef4444', icon: '🗑️' });
+    const ok = await showConfirmDialog({ title: 'Remove Booking', message: 'Remove this booking from your history? This cannot be undone.', okLabel: 'Remove', okColor: '#ef4444', icon: '' });
     if (!ok) return;
     const all=getAllBookings(), filtered=all.filter(b=>b.id!==id);
     saveAllBookings(filtered);
     if(context==='hospital') renderDashBookings();
     else if(context==='clinic') renderBookingsForClinic(STATE.currentClinicId);
     else renderPatientBookings();
-    showToast('🗑 Booking removed','');
+    showToast('Booking removed','');
 }
 async function cancelBooking(id, context='patient') {
-    const ok = await showConfirmDialog({ title: 'Cancel Booking', message: 'Are you sure you want to cancel this appointment?', okLabel: 'Yes, Cancel', okColor: '#f59e0b', icon: '⚠️' });
+    const ok = await showConfirmDialog({ title: 'Cancel Booking', message: 'Are you sure you want to cancel this appointment?', okLabel: 'Yes, Cancel', okColor: '#f59e0b', icon: '' });
     if (!ok) return;
     const all=getAllBookings(), idx=all.findIndex(b=>b.id===id);
     if(idx!==-1){all[idx].status='cancelled';saveAllBookings(all);}
@@ -2157,19 +2079,19 @@ async function cancelBooking(id, context='patient') {
 }
 // Cancel a server booking from patient/hospital/clinic view
 async function cancelServerBookingAndRefresh(serverId, context='patient') {
-    const ok = await showConfirmDialog({ title: 'Cancel Booking', message: 'Are you sure you want to cancel this appointment?', okLabel: 'Yes, Cancel', okColor: '#f59e0b', icon: '⚠️' });
+    const ok = await showConfirmDialog({ title: 'Cancel Booking', message: 'Are you sure you want to cancel this appointment?', okLabel: 'Yes, Cancel', okColor: '#f59e0b', icon: '' });
     if (!ok) return;
     try {
         await fetch(`${API_URL}/bookings/${serverId}`, { method: 'DELETE' });
         showToast('Booking cancelled', '');
-    } catch(e) { showToast('❌ Could not cancel. Try again.', 'error'); return; }
+    } catch(e) { showToast('Could not cancel. Try again.', 'error'); return; }
     if(context==='hospital') renderDashBookings();
     else if(context==='clinic') renderBookingsForClinic(STATE.currentClinicId);
     else renderPatientBookings();
 }
 // Remove (hide) a server booking from patient view — cancel on server + refresh
 async function removeServerBooking(serverId, context='patient') {
-    const ok = await showConfirmDialog({ title: 'Remove Booking', message: 'Remove this booking from your history? This cannot be undone.', okLabel: '🗑 Remove', okColor: '#ef4444', icon: '🗑️' });
+    const ok = await showConfirmDialog({ title: 'Remove Booking', message: 'Remove this booking from your history? This cannot be undone.', okLabel: 'Remove', okColor: '#ef4444', icon: '' });
     if (!ok) return;
     try {
         await fetch(`${API_URL}/bookings/${serverId}/hard`, { method: 'DELETE' });
@@ -2177,7 +2099,7 @@ async function removeServerBooking(serverId, context='patient') {
     if(context==='hospital') renderDashBookings();
     else if(context==='clinic') renderBookingsForClinic(STATE.currentClinicId);
     else renderPatientBookings();
-    showToast('🗑 Booking removed', '');
+    showToast('Booking removed', '');
 }
 
 // ─── BOOKING CONFIRMATION MODAL ──────────────────────────
@@ -2185,16 +2107,16 @@ function showBookingConfirmation({ doctorName, specialization, hospital, date, t
     const [sy, smo, sd] = date.split('-').map(Number);
     const d = new Date(sy, smo-1, sd);
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     const dateLabel = `${days[d.getDay()]}, ${sd} ${months[smo-1]} ${sy}`;
     const el = document.getElementById('booking-confirm-modal');
     document.getElementById('bc-doctor').textContent = doctorName;
-    document.getElementById('bc-spec').textContent   = specialization || '';
-    document.getElementById('bc-hosp').textContent   = hospital || '';
-    document.getElementById('bc-date').textContent   = dateLabel;
-    document.getElementById('bc-time').textContent   = time;
-    document.getElementById('bc-name').textContent   = patientName;
-    document.getElementById('bc-phone').textContent  = patientPhone || '—';
+    document.getElementById('bc-spec').textContent = specialization || '';
+    document.getElementById('bc-hosp').textContent = hospital || '';
+    document.getElementById('bc-date').textContent = dateLabel;
+    document.getElementById('bc-time').textContent = time;
+    document.getElementById('bc-name').textContent = patientName;
+    document.getElementById('bc-phone').textContent = patientPhone || '—';
     el.style.display = 'flex';
 }
 function closeBookingConfirm() {
