@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const { Hospital, Doctor, Clinic, TimeSlot, Booking, Patient } = require('./models');
@@ -10,22 +11,140 @@ const { Hospital, Doctor, Clinic, TimeSlot, Booking, Patient } = require('./mode
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(self)');
+    res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://maps.google.com https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    );
+    next();
+});
+app.use(cors((req, callback) => {
+    const origin = req.header('Origin');
+    let allowed = !origin;
+    try {
+        allowed = allowed || new URL(origin).host === req.headers.host;
+    } catch (e) {}
+    allowed = allowed
+        || (allowedOrigins.length === 0 && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin || ''))
+        || allowedOrigins.includes(origin);
+    callback(null, { origin: allowed });
+}));
+app.use(bodyParser.json({ limit: '100kb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '100kb' }));
+app.use((req, res, next) => {
+    if (req.body && typeof req.body === 'object') sanitizeObject(req.body);
+    next();
+});
 app.use(express.static('public'));
 
 // ── Simple dashboard auth middleware ──────────────────────────────────────
 // Protects hospital/clinic dashboard write operations.
 // Reads the token from X-Dashboard-Token header.
-const HOSP_TOKENS  = new Set(); // populated on login
-const CLINIC_TOKENS = new Set();
+const DASHBOARD_TOKEN_TTL_MS = 8 * 60 * 60 * 1000;
+const HOSP_TOKENS  = new Map(); // populated on login
+const CLINIC_TOKENS = new Map();
 function requireDashboardAuth(req, res, next) {
     const token = req.headers['x-dashboard-token'];
-    if (!token || (!HOSP_TOKENS.has(token) && !CLINIC_TOKENS.has(token))) {
+    if (!token || (!isValidDashboardToken(HOSP_TOKENS, token) && !isValidDashboardToken(CLINIC_TOKENS, token))) {
         return res.status(401).json({ error: 'Unauthorized — please log in' });
     }
     next();
+}
+
+function issueDashboardToken(store, subjectId) {
+    const token = crypto.randomBytes(32).toString('hex');
+    store.set(token, { subjectId, expiresAt: Date.now() + DASHBOARD_TOKEN_TTL_MS });
+    return token;
+}
+
+function isValidDashboardToken(store, token) {
+    const session = store.get(token);
+    if (!session) return false;
+    if (session.expiresAt <= Date.now()) {
+        store.delete(token);
+        return false;
+    }
+    return true;
+}
+
+setInterval(() => {
+    const now = Date.now();
+    for (const store of [HOSP_TOKENS, CLINIC_TOKENS]) {
+        for (const [token, session] of store.entries()) {
+            if (session.expiresAt <= now) store.delete(token);
+        }
+    }
+}, 15 * 60 * 1000);
+
+function createRateLimiter({ windowMs, max, message }) {
+    const hits = new Map();
+    return (req, res, next) => {
+        const key = `${req.ip}:${req.path}`;
+        const now = Date.now();
+        const entry = hits.get(key) || { count: 0, resetAt: now + windowMs };
+        if (entry.resetAt <= now) {
+            entry.count = 0;
+            entry.resetAt = now + windowMs;
+        }
+        entry.count += 1;
+        hits.set(key, entry);
+        res.setHeader('RateLimit-Limit', String(max));
+        res.setHeader('RateLimit-Remaining', String(Math.max(0, max - entry.count)));
+        res.setHeader('RateLimit-Reset', String(Math.ceil(entry.resetAt / 1000)));
+        if (entry.count > max) return res.status(429).json({ error: message });
+        next();
+    };
+}
+
+const loginLimiter = createRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: 'Too many login attempts. Please wait and try again.'
+});
+
+function sanitizeObject(value) {
+    if (!value || typeof value !== 'object') return value;
+    for (const key of Object.keys(value)) {
+        if (typeof value[key] === 'string') {
+            value[key] = value[key].trim().replace(/[<>]/g, '');
+            if (value[key].length > 1000) value[key] = value[key].slice(0, 1000);
+        } else if (value[key] && typeof value[key] === 'object') {
+            sanitizeObject(value[key]);
+        }
+    }
+    return value;
+}
+
+function isBcryptHash(value) {
+    return typeof value === 'string' && /^\$2[aby]\$\d{2}\$/.test(value);
+}
+
+async function verifyStoredPassword(doc, plainPassword) {
+    if (!doc || typeof plainPassword !== 'string') return false;
+    if (isBcryptHash(doc.password)) return bcrypt.compare(plainPassword, doc.password);
+    const matched = doc.password === plainPassword;
+    if (matched) {
+        doc.password = await bcrypt.hash(plainPassword, 10);
+        await doc.save();
+    }
+    return matched;
+}
+
+function stripSecretFields(doc) {
+    const obj = doc && typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
+    delete obj.password;
+    return obj;
 }
 
 mongoose.connect(process.env.MONGODB_URI)
@@ -120,9 +239,15 @@ cleanExpiredSlots().catch(err => console.error('Slot cleanup error:', err.messag
 // ==============================
 // PATIENT AUTH ROUTES
 // ==============================
-app.post('/api/patients/register', async (req, res) => {
+app.post('/api/patients/register', loginLimiter, async (req, res) => {
     try {
         const { name, email, password, phone, age, address } = req.body;
+        if (!name || !email || !password || !phone) {
+            return res.status(400).json({ error: 'Name, email, phone, and password are required' });
+        }
+        if (password.length < 8) {
+            return res.status(400).json({ error: 'Password must be at least 8 characters' });
+        }
         const existing = await Patient.findOne({ email: email.toLowerCase() });
         if (existing) return res.status(400).json({ error: 'Email already registered' });
         // Hash password before saving — plain text never stored
@@ -135,9 +260,10 @@ app.post('/api/patients/register', async (req, res) => {
     }
 });
 
-app.post('/api/patients/login', async (req, res) => {
+app.post('/api/patients/login', loginLimiter, async (req, res) => {
     try {
         const { email, password } = req.body;
+        if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
         const patient = await Patient.findOne({ email: email.toLowerCase() });
         if (!patient) return res.status(404).json({ error: 'No account found with this email' });
         // Compare entered password with hashed password in DB
@@ -195,32 +321,34 @@ app.get('/api/hospitals/:id', async (req, res) => {
     try {
         const hospital = await Hospital.findOne({ hospitalId: parseInt(req.params.id) });
         if (!hospital) return res.status(404).json({ error: 'Hospital not found' });
-        res.json(hospital);
+        res.json(stripSecretFields(hospital));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/api/hospitals', async (req, res) => {
+app.post('/api/hospitals', requireDashboardAuth, async (req, res) => {
     try {
-        const hospital = new Hospital(req.body);
+        const hospitalData = { ...req.body };
+        if (hospitalData.password) hospitalData.password = await bcrypt.hash(hospitalData.password, 10);
+        const hospital = new Hospital(hospitalData);
         await hospital.save();
-        res.status(201).json(hospital);
+        res.status(201).json(stripSecretFields(hospital));
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
 
 // Hospital login
-app.post('/api/hospitals/login', async (req, res) => {
+app.post('/api/hospitals/login', loginLimiter, async (req, res) => {
     try {
         const { hospitalId, password } = req.body;
+        if (!hospitalId || !password) return res.status(400).json({ error: 'Hospital ID and password are required' });
         const hospital = await Hospital.findOne({ hospitalId: parseInt(hospitalId) });
         if (!hospital) return res.status(404).json({ error: 'Hospital not found' });
-        if (hospital.password !== password) return res.status(401).json({ error: 'Invalid password' });
-        const token = 'H' + hospital.hospitalId + '_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-        HOSP_TOKENS.add(token);
-        res.json({ success: true, hospital, token });
+        if (!(await verifyStoredPassword(hospital, password))) return res.status(401).json({ error: 'Invalid password' });
+        const token = issueDashboardToken(HOSP_TOKENS, hospital.hospitalId);
+        res.json({ success: true, hospital: stripSecretFields(hospital), token });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -289,7 +417,7 @@ app.get('/api/doctors/:id', async (req, res) => {
     }
 });
 
-app.post('/api/doctors', async (req, res) => {
+app.post('/api/doctors', requireDashboardAuth, async (req, res) => {
     try {
         const doctor = new Doctor(req.body);
         await doctor.save();
@@ -299,7 +427,7 @@ app.post('/api/doctors', async (req, res) => {
     }
 });
 
-app.put('/api/doctors/:id', async (req, res) => {
+app.put('/api/doctors/:id', requireDashboardAuth, async (req, res) => {
     try {
         const doctor = await Doctor.findOneAndUpdate(
             { doctorId: parseInt(req.params.id) },
@@ -313,7 +441,7 @@ app.put('/api/doctors/:id', async (req, res) => {
     }
 });
 
-app.patch('/api/doctors/:id/availability', async (req, res) => {
+app.patch('/api/doctors/:id/availability', requireDashboardAuth, async (req, res) => {
     try {
         const doctor = await Doctor.findOne({ doctorId: parseInt(req.params.id) });
         if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
@@ -326,7 +454,7 @@ app.patch('/api/doctors/:id/availability', async (req, res) => {
     }
 });
 
-app.delete('/api/doctors/:id', async (req, res) => {
+app.delete('/api/doctors/:id', requireDashboardAuth, async (req, res) => {
     try {
         const doctor = await Doctor.findOneAndDelete({ doctorId: parseInt(req.params.id) });
         if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
@@ -380,7 +508,7 @@ app.get('/api/slots/hospital/:hospitalId', async (req, res) => {
 });
 
 // POST create time slot (hospital dashboard)
-app.post('/api/slots', async (req, res) => {
+app.post('/api/slots', requireDashboardAuth, async (req, res) => {
     try {
         const { doctorId, hospitalId, date, time, maxBookings } = req.body;
         if (!date || !time) return res.status(400).json({ error: 'Date and time are required' });
@@ -412,7 +540,7 @@ app.post('/api/slots', async (req, res) => {
 });
 
 // PUT update time slot
-app.put('/api/slots/:id', async (req, res) => {
+app.put('/api/slots/:id', requireDashboardAuth, async (req, res) => {
     try {
         const { date, time, maxBookings } = req.body;
         const update = { ...(date && { date }), ...(time && { time }), ...(maxBookings && { maxBookings }) };
@@ -440,7 +568,7 @@ app.put('/api/slots/:id', async (req, res) => {
 });
 
 // DELETE time slot
-app.delete('/api/slots/:id', async (req, res) => {
+app.delete('/api/slots/:id', requireDashboardAuth, async (req, res) => {
     try {
         const slot = await TimeSlot.findByIdAndDelete(req.params.id);
         if (!slot) return res.status(404).json({ error: 'Slot not found' });
@@ -848,7 +976,7 @@ app.get('/api/global-search', async (req, res) => {
 app.get('/api/clinics', async (req, res) => {
     try {
         const clinics = await Clinic.find().sort({ available: -1, clinicId: 1 });
-        res.json(clinics);
+        res.json(clinics.map(stripSecretFields));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -858,47 +986,51 @@ app.get('/api/clinics/:id', async (req, res) => {
     try {
         const clinic = await Clinic.findOne({ clinicId: parseInt(req.params.id) });
         if (!clinic) return res.status(404).json({ error: 'Clinic not found' });
-        res.json(clinic);
+        res.json(stripSecretFields(clinic));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/api/clinics/login', async (req, res) => {
+app.post('/api/clinics/login', loginLimiter, async (req, res) => {
     try {
         const { clinicId, password } = req.body;
+        if (!clinicId || !password) return res.status(400).json({ error: 'Clinic ID and password are required' });
         const clinic = await Clinic.findOne({ clinicId: parseInt(clinicId) });
         if (!clinic) return res.status(404).json({ error: 'Clinic not found' });
-        if (clinic.password !== password) return res.status(401).json({ error: 'Invalid password' });
-        const token = 'C' + clinic.clinicId + '_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-        CLINIC_TOKENS.add(token);
-        res.json({ success: true, clinic, token });
+        if (!(await verifyStoredPassword(clinic, password))) return res.status(401).json({ error: 'Invalid password' });
+        const token = issueDashboardToken(CLINIC_TOKENS, clinic.clinicId);
+        res.json({ success: true, clinic: stripSecretFields(clinic), token });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/api/clinics', async (req, res) => {
+app.post('/api/clinics', requireDashboardAuth, async (req, res) => {
     try {
-        const clinic = new Clinic(req.body);
+        const clinicData = { ...req.body };
+        if (clinicData.password) clinicData.password = await bcrypt.hash(clinicData.password, 10);
+        const clinic = new Clinic(clinicData);
         await clinic.save();
-        res.status(201).json(clinic);
+        res.status(201).json(stripSecretFields(clinic));
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
 
-app.put('/api/clinics/:id', async (req, res) => {
+app.put('/api/clinics/:id', requireDashboardAuth, async (req, res) => {
     try {
-        const clinic = await Clinic.findOneAndUpdate({ clinicId: parseInt(req.params.id) }, req.body, { new: true });
+        const update = { ...req.body };
+        if (update.password) update.password = await bcrypt.hash(update.password, 10);
+        const clinic = await Clinic.findOneAndUpdate({ clinicId: parseInt(req.params.id) }, update, { new: true, runValidators: true });
         if (!clinic) return res.status(404).json({ error: 'Clinic not found' });
-        res.json(clinic);
+        res.json(stripSecretFields(clinic));
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
 
-app.patch('/api/clinics/:id/availability', async (req, res) => {
+app.patch('/api/clinics/:id/availability', requireDashboardAuth, async (req, res) => {
     try {
         const clinic = await Clinic.findOne({ clinicId: parseInt(req.params.id) });
         if (!clinic) return res.status(404).json({ error: 'Clinic not found' });
@@ -911,7 +1043,7 @@ app.patch('/api/clinics/:id/availability', async (req, res) => {
     }
 });
 
-app.delete('/api/clinics/:id', async (req, res) => {
+app.delete('/api/clinics/:id', requireDashboardAuth, async (req, res) => {
     try {
         const clinic = await Clinic.findOneAndDelete({ clinicId: parseInt(req.params.id) });
         if (!clinic) return res.status(404).json({ error: 'Clinic not found' });

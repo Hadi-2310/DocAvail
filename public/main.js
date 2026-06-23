@@ -63,6 +63,20 @@ function relativeTime(isoStr) {
     return fmtDateTime(isoStr);
 }
 
+function esc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[ch]));
+}
+
+function jsString(value) {
+    return JSON.stringify(String(value ?? '')).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+}
+
 // STATE
 const STATE = {
     currentScreen: 'splash',
@@ -1142,7 +1156,7 @@ async function renderDashDoctors() {
 }
 async function toggleDoctorDB(id) {
     try {
-        await fetch(`${API_URL}/doctors/${id}/availability`,{method:'PATCH',headers:{'Content-Type':'application/json'}});
+        await fetch(`${API_URL}/doctors/${id}/availability`,{method:'PATCH',headers:dashHeaders()});
         // Refresh both the doctor list AND the stats counter at the top
         await Promise.all([renderDashDoctors(), refreshDashStats()]);
         showToast('Availability updated','success');
@@ -1195,7 +1209,7 @@ async function addNewSlot() {
     const maxBookings=parseInt(document.getElementById('slot-max-input').value);
     if(!date||!time){showToast('Please select date and time.','error');return;}
     try {
-        const res=await fetch(`${API_URL}/slots`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({doctorId,hospitalId:STATE.currentHospitalId,date,time,maxBookings})});
+        const res=await fetch(`${API_URL}/slots`,{method:'POST',headers:dashHeaders(),body:JSON.stringify({doctorId,hospitalId:STATE.currentHospitalId,date,time,maxBookings})});
         const data=await res.json();
         if(!res.ok){showToast(data.error||'Failed to add slot','error');return;}
         showToast('Slot added!','success'); await renderDashSlots();
@@ -1204,7 +1218,7 @@ async function addNewSlot() {
 async function deleteSlot(slotId) {
     const ok = await showConfirmDialog({ title: 'Delete Slot', message: 'Remove this time slot? Any bookings on it may be affected.', okLabel: 'Delete', okColor: '#ef4444', icon: '' });
     if (!ok) return;
-    await fetch(`${API_URL}/slots/${slotId}`,{method:'DELETE'});
+    await fetch(`${API_URL}/slots/${slotId}`,{method:'DELETE',headers:dashHeaders()});
     showToast('Slot removed',''); await renderDashSlots();
 }
 function openEditSlotModal(id, date, time, maxBookings) {
@@ -1223,7 +1237,7 @@ async function saveEditSlot() {
     const max =parseInt(document.getElementById('edit-slot-max').value);
     if(!date||!time){showToast('Please fill all fields','error');return;}
     try {
-        const res=await fetch(`${API_URL}/slots/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({date,time,maxBookings:max})});
+        const res=await fetch(`${API_URL}/slots/${id}`,{method:'PUT',headers:dashHeaders(),body:JSON.stringify({date,time,maxBookings:max})});
         if(!res.ok){const d=await res.json();showToast(d.error||'Failed to update','error');return;}
         showToast('Slot updated!','success'); closeEditSlotModal(); await renderDashSlots();
     } catch(e){showToast('Connection error.','error');}
@@ -1366,7 +1380,7 @@ async function renderClinicDashboard() {
 }
 async function toggleClinicAvailability(id) {
     try{
-        await fetch(`${API_URL}/clinics/${id}/availability`,{method:'PATCH',headers:{'Content-Type':'application/json'}});
+        await fetch(`${API_URL}/clinics/${id}/availability`,{method:'PATCH',headers:dashHeaders()});
         renderClinicDashboard(); showToast('Availability updated','success');
     }catch(e){showToast('Error','error');}
 }
@@ -1397,7 +1411,7 @@ async function addClinicSlot(clinicId) {
     const max=parseInt(document.getElementById('clinic-slot-max').value)||5;
     if(!date||!time){showToast('Please select date and time.','error');return;}
     try{
-        const res=await fetch(`${API_URL}/slots`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({doctorId:clinicId,date,time,maxBookings:max})});
+        const res=await fetch(`${API_URL}/slots`,{method:'POST',headers:dashHeaders(),body:JSON.stringify({doctorId:clinicId,date,time,maxBookings:max})});
         if(!res.ok){const d=await res.json();showToast(d.error||'Failed to add slot','error');return;}
         showToast('Slot added!','success'); await renderClinicSlots(clinicId);
     }catch(e){showToast('Connection error.','error');}
@@ -1405,7 +1419,7 @@ async function addClinicSlot(clinicId) {
 async function deleteClinicSlot(slotId, clinicId) {
     const ok = await showConfirmDialog({ title: 'Delete Slot', message: 'Remove this time slot? Any bookings on it may be affected.', okLabel: 'Delete', okColor: '#ef4444', icon: '' });
     if (!ok) return;
-    await fetch(`${API_URL}/slots/${slotId}`,{method:'DELETE'});
+    await fetch(`${API_URL}/slots/${slotId}`,{method:'DELETE',headers:dashHeaders()});
     showToast('Slot removed',''); await renderClinicSlots(clinicId);
 }
 function switchClinicTab(tab) {
@@ -1473,13 +1487,13 @@ async function saveDoctorForm(e) {
     };
     try {
         if(isEdit){
-            await fetch(`${API_URL}/doctors/${doctorId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+            await fetch(`${API_URL}/doctors/${doctorId}`,{method:'PUT',headers:dashHeaders(),body:JSON.stringify(data)});
             showToast('Doctor updated!','success');
         } else {
             const allDocs=await apiFetch('/doctors').catch(()=>[]);
             const maxId=allDocs.length?Math.max(...allDocs.map(d=>d.doctorId)):0;
             data.doctorId=maxId+1;
-            await fetch(`${API_URL}/doctors`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+            await fetch(`${API_URL}/doctors`,{method:'POST',headers:dashHeaders(),body:JSON.stringify(data)});
             showToast('Doctor added!','success');
         }
         closeDoctorModal(); renderHospitalDashboard();
@@ -1490,7 +1504,7 @@ function closeDeleteModal(){document.getElementById('delete-modal').style.displa
 async function confirmDeleteDoctor() {
     if(!STATE.deletingDoctorId) return;
     try{
-        await fetch(`${API_URL}/doctors/${STATE.deletingDoctorId}`,{method:'DELETE'});
+        await fetch(`${API_URL}/doctors/${STATE.deletingDoctorId}`,{method:'DELETE',headers:dashHeaders()});
         showToast('Doctor deleted','success'); closeDeleteModal(); renderHospitalDashboard();
     }catch(e){showToast('Error deleting','error');}
 }
