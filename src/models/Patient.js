@@ -6,7 +6,12 @@ const patientSchema = new mongoose.Schema({
     password: { type: String, required: true },
     phone: { type: String, required: true },
     age: { type: Number },
-    address: { type: String }
+    address: { type: String },
+    emailVerified: { type: Boolean, default: true },
+    emailVerificationTokenHash: { type: String, default: null },
+    emailVerificationExpiresAt: { type: Date, default: null },
+    emailVerificationSentAt: { type: Date, default: null },
+    emailVerifiedAt: { type: Date, default: null }
 }, { timestamps: true });
 
 module.exports = mongoose.models.Patient || mongoose.model('Patient', patientSchema);

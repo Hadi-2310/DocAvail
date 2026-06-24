@@ -5,6 +5,7 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const path = require('path');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const Hospital = require('./models/Hospital');
@@ -138,6 +139,70 @@ function normalizeEmail(value) {
 }
 function isValidEmail(value) {
     return EMAIL_RE.test(normalizeEmail(value));
+}
+
+const EMAIL_FROM = process.env.EMAIL_FROM || process.env.SMTP_USER || 'DocAvail <no-reply@docavail.local>';
+const SMTP_HOST = process.env.SMTP_HOST || '';
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
+const SMTP_SECURE = String(process.env.SMTP_SECURE || '').toLowerCase() === 'true';
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const APP_BASE_URL = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
+
+const mailTransporter = (SMTP_HOST && SMTP_USER && SMTP_PASS)
+    ? nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_SECURE,
+        auth: { user: SMTP_USER, pass: SMTP_PASS }
+    })
+    : null;
+
+function makeVerificationToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+function hashVerificationToken(token) {
+    return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+async function sendVerificationEmail(patient, token, req) {
+    const verificationUrl = `${APP_BASE_URL}/verify-email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(patient.email)}`;
+    const from = EMAIL_FROM;
+    const to = patient.email;
+    const subject = 'Verify your DocAvail email';
+    const text = [
+        `Hi ${patient.name},`,
+        '',
+        'Please verify your email address to activate your DocAvail account:',
+        verificationUrl,
+        '',
+        'If you did not create this account, you can ignore this message.'
+    ].join('\n');
+
+    if (mailTransporter) {
+        await mailTransporter.sendMail({
+            from,
+            to,
+            subject,
+            text,
+            html: `<p>Hi ${escapeHtml(patient.name)},</p><p>Please verify your email address to activate your DocAvail account:</p><p><a href="${verificationUrl}">${verificationUrl}</a></p><p>If you did not create this account, you can ignore this message.</p>`
+        });
+        return { sent: true, verificationUrl };
+    }
+
+    console.log(`[DocAvail] Verification link for ${patient.email}: ${verificationUrl}`);
+    return { sent: false, verificationUrl };
+}
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[ch]));
 }
 
 const AUTH_TOKEN_TTL_SECONDS = 8 * 60 * 60;
@@ -345,19 +410,30 @@ app.post('/api/patients/register', loginLimiter, async (req, res) => {
         if (existing) return res.status(400).json({ error: 'Email already registered' });
         // Hash password before saving — plain text never stored
         const hashedPassword = await bcrypt.hash(password, 10);
-        const patient = new Patient({ name, email: normalizedEmail, password: hashedPassword, phone, age, address });
-        await patient.save();
-        const token = issueJwt({
-            kind: 'patient',
-            patientId: patient._id.toString(),
-            name: patient.name,
-            email: patient.email,
-            phone: patient.phone
+        const patient = new Patient({
+            name,
+            email: normalizedEmail,
+            password: hashedPassword,
+            phone,
+            age,
+            address,
+            emailVerified: false,
+            emailVerifiedAt: null,
+            emailVerificationTokenHash: null,
+            emailVerificationExpiresAt: null,
+            emailVerificationSentAt: null
         });
+        const verificationToken = makeVerificationToken();
+        patient.emailVerificationTokenHash = hashVerificationToken(verificationToken);
+        patient.emailVerificationExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        patient.emailVerificationSentAt = new Date();
+        await patient.save();
+        const emailResult = await sendVerificationEmail(patient, verificationToken, req);
         res.status(201).json({
             success: true,
-            patient: { id: patient._id, name: patient.name, email: patient.email, phone: patient.phone, age: patient.age },
-            token
+            patient: { id: patient._id, name: patient.name, email: patient.email, phone: patient.phone, age: patient.age, emailVerified: false },
+            message: 'Account created. Please verify your email before logging in.',
+            verificationLink: process.env.NODE_ENV === 'production' ? undefined : emailResult.verificationUrl
         });
     } catch (error) {
         res.status(400).json({ error: error.message });
@@ -374,6 +450,9 @@ app.post('/api/patients/login', loginLimiter, async (req, res) => {
         }
         const patient = await Patient.findOne({ email: normalizedEmail });
         if (!patient) return res.status(404).json({ error: 'No account found with this email' });
+        if (patient.emailVerified === false) {
+            return res.status(403).json({ error: 'Please verify your email address before logging in.' });
+        }
         // Compare entered password with hashed password in DB
         const isMatch = await bcrypt.compare(password, patient.password);
         if (!isMatch) return res.status(401).json({ error: 'Incorrect password. Forgot your password? Contact admin: docavail4@gmail.com' });
@@ -385,6 +464,64 @@ app.post('/api/patients/login', loginLimiter, async (req, res) => {
             phone: patient.phone
         });
         res.json({ success: true, patient: { id: patient._id, name: patient.name, email: patient.email, phone: patient.phone, age: patient.age }, token });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/patients/verify-email', async (req, res) => {
+    try {
+        const token = typeof req.query.token === 'string' ? req.query.token.trim() : '';
+        const email = normalizeEmail(req.query.email);
+        if (!token || !isValidEmail(email)) {
+            return res.redirect('/?verified=0');
+        }
+        const tokenHash = hashVerificationToken(token);
+        const patient = await Patient.findOne({
+            email,
+            emailVerificationTokenHash: tokenHash,
+            emailVerificationExpiresAt: { $gt: new Date() }
+        });
+        if (!patient) {
+            return res.redirect('/?verified=0');
+        }
+        patient.emailVerified = true;
+        patient.emailVerifiedAt = new Date();
+        patient.emailVerificationTokenHash = null;
+        patient.emailVerificationExpiresAt = null;
+        patient.emailVerificationSentAt = null;
+        await patient.save();
+        return res.redirect('/?verified=1');
+    } catch (error) {
+        return res.redirect('/?verified=0');
+    }
+});
+
+app.post('/api/patients/resend-verification', loginLimiter, async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const normalizedEmail = normalizeEmail(email);
+        if (!isValidEmail(normalizedEmail) || !password) {
+            return res.status(400).json({ error: 'Email and password are required' });
+        }
+        const patient = await Patient.findOne({ email: normalizedEmail });
+        if (!patient) return res.status(404).json({ error: 'No account found with this email' });
+        const isMatch = await bcrypt.compare(password, patient.password);
+        if (!isMatch) return res.status(401).json({ error: 'Incorrect password' });
+        if (patient.emailVerified) {
+            return res.json({ success: true, message: 'Email already verified.' });
+        }
+        const verificationToken = makeVerificationToken();
+        patient.emailVerificationTokenHash = hashVerificationToken(verificationToken);
+        patient.emailVerificationExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        patient.emailVerificationSentAt = new Date();
+        await patient.save();
+        const emailResult = await sendVerificationEmail(patient, verificationToken, req);
+        res.json({
+            success: true,
+            message: 'Verification email sent.',
+            verificationLink: process.env.NODE_ENV === 'production' ? undefined : emailResult.verificationUrl
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

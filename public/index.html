@@ -401,6 +401,7 @@
             <div class="form-group"><label>Email</label><input type="email" id="login-email" required placeholder="your@email.com"></div>
             <div class="form-group"><label>Password</label><input type="password" id="login-password" required placeholder="Enter password"></div>
             <p id="login-error" style="color:#ef4444;font-size:.85rem;display:none;"></p>
+            <button type="button" onclick="resendVerificationEmail()" style="background:none;border:none;color:#2563eb;padding:0;margin:-2px 0 8px;font-size:.82rem;font-weight:600;cursor:pointer;text-align:left">Resend verification email</button>
             <button type="submit" class="btn-primary-full">Login</button>
         </form>
         <form id="patient-register-form" class="auth-form" style="display:none" onsubmit="handlePatientRegister(event)">

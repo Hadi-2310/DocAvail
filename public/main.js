@@ -309,11 +309,45 @@ async function handlePatientRegister(event) {
         const data = await res.json();
         if (!res.ok) { errEl.textContent=data.error||'Registration failed'; errEl.style.display='block'; return; }
         STATE.dashboardToken = null;
-        STATE.currentPatient = data.patient;
-        STATE.patientToken = data.token || null;
-        okEl.textContent='Account created! Signing you in...'; okEl.style.display='block';
-        setTimeout(()=>navigateToScreen('hospital-list-screen'), 900);
+        STATE.currentPatient = null;
+        STATE.patientToken = null;
+        okEl.textContent = data.message || 'Account created. Please verify your email before logging in.';
+        if (data.verificationLink && location.hostname === 'localhost') {
+            okEl.textContent += ` Dev link: ${data.verificationLink}`;
+        }
+        okEl.style.display='block';
+        switchAuthTab('login');
     } catch(e) { errEl.textContent='Connection error. Is the server running?'; errEl.style.display='block'; }
+}
+async function resendVerificationEmail() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errEl = document.getElementById('login-error');
+    const okEl = document.getElementById('register-success');
+    errEl.style.display = 'none';
+    okEl.style.display = 'none';
+    if (!isValidEmail(email)) {
+        errEl.textContent = 'Enter the email address you used to register.';
+        errEl.style.display = 'block';
+        return;
+    }
+    try {
+        const res = await fetch(`${API_URL}/patients/resend-verification`, {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) { errEl.textContent = data.error || 'Could not resend verification email'; errEl.style.display='block'; return; }
+        okEl.textContent = data.message || 'Verification email sent.';
+        if (data.verificationLink && location.hostname === 'localhost') {
+            okEl.textContent += ` Dev link: ${data.verificationLink}`;
+        }
+        okEl.style.display = 'block';
+    } catch(e) {
+        errEl.textContent = 'Connection error. Is the server running?';
+        errEl.style.display = 'block';
+    }
 }
 async function handleHospitalLogin(event) {
     event.preventDefault();
@@ -2167,5 +2201,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const style = document.createElement('style');
     style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
     document.head.appendChild(style);
+    const params = new URLSearchParams(location.search);
+    if (params.get('verified') === '1') {
+        setTimeout(() => showToast('Email verified successfully. You can log in now.', 'success'), 500);
+        params.delete('verified');
+        const nextUrl = `${location.pathname}${params.toString() ? `?${params.toString()}` : ''}${location.hash || ''}`;
+        history.replaceState({}, '', nextUrl);
+    } else if (params.get('verified') === '0') {
+        setTimeout(() => showToast('Verification link is invalid or expired.', 'error'), 500);
+        params.delete('verified');
+        const nextUrl = `${location.pathname}${params.toString() ? `?${params.toString()}` : ''}${location.hash || ''}`;
+        history.replaceState({}, '', nextUrl);
+    }
     setTimeout(()=>navigateToScreen('welcome'), 2500);
 });
