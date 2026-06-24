@@ -1799,3 +1799,27 @@ button, .auth-tab, .filter-chip, .list-tab, .dash-tab {
     padding-right: env(safe-area-inset-right);
   }
 }
+
+/* Dashboard readability overrides */
+.dash-tabs .dash-tab,
+.dash-tabs .dash-tab:hover,
+.dash-tabs .dash-tab:focus-visible {
+  color: var(--gray-700);
+}
+
+.dash-tabs .dash-tab.active {
+  background: #e0f2fe;
+  color: var(--navy-800);
+  border: 1.5px solid #bae6fd;
+  border-bottom-color: var(--teal-500);
+}
+
+.dash-tabs .dash-tab.active:hover,
+.dash-tabs .dash-tab.active:focus-visible {
+  color: var(--navy-800);
+}
+
+.btn-del-slot {
+  min-width: 64px;
+  color: #be123c;
+}

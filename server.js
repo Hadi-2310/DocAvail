@@ -6,7 +6,12 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 require('dotenv').config();
 
-const { Hospital, Doctor, Clinic, TimeSlot, Booking, Patient } = require('./models');
+const Hospital = require('./models/Hospital');
+const Doctor = require('./models/Doctor');
+const Clinic = require('./models/Clinic');
+const TimeSlot = require('./models/TimeSlot');
+const Booking = require('./models/Booking');
+const Patient = require('./models/Patient');
 
 const app = express();
 const PORT = process.env.PORT || 5000;

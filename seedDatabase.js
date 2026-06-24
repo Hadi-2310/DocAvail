@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
-const { Hospital, Doctor, Clinic, Patient } = require('./models');
+const Hospital = require('./models/Hospital');
+const Doctor = require('./models/Doctor');
+const Clinic = require('./models/Clinic');
+const Patient = require('./models/Patient');
 
 mongoose.connect(process.env.MONGODB_URI)
 .then(() => console.log('✅ MongoDB Connected'))

@@ -1197,7 +1197,7 @@ async function renderDashSlots() {
                 <div class="slot-meta">${slot.isActive?'Active':'Expired'}</div></div>
               <span class="slot-fill">${totalBooked}/${slot.maxBookings} booked</span>
               <button class="btn-edit-slot" onclick="openEditSlotModal('${slot._id}','${slot.date}','${slot.time}',${slot.maxBookings})">Edit</button>
-              <button class="btn-del-slot" onclick="deleteSlot('${slot._id}')"></button></div>`;
+              <button class="btn-del-slot" onclick="deleteSlot('${slot._id}')">Delete</button></div>`;
         });
     });
     listEl.innerHTML=html;
@@ -1402,7 +1402,7 @@ async function renderClinicSlots(clinicId) {
             <div class="slot-meta">${slot.isActive?'Active':'Expired'}</div></div>
           <span class="slot-fill">${slot.currentBookings}/${slot.maxBookings} booked</span>
           <button class="btn-edit-slot" onclick="openEditSlotModal('${slot._id}','${slot.date}','${slot.time}',${slot.maxBookings})">Edit</button>
-          <button class="btn-del-slot" onclick="deleteClinicSlot('${slot._id}',${clinicId})"></button></div>`;
+          <button class="btn-del-slot" onclick="deleteClinicSlot('${slot._id}',${clinicId})">Delete</button></div>`;
     }).join('');
 }
 async function addClinicSlot(clinicId) {
