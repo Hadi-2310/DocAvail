@@ -132,6 +132,86 @@ function sanitizeObject(value) {
     return value;
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function normalizeEmail(value) {
+    return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+function isValidEmail(value) {
+    return EMAIL_RE.test(normalizeEmail(value));
+}
+
+const AUTH_TOKEN_TTL_SECONDS = 8 * 60 * 60;
+const JWT_SECRET = process.env.JWT_SECRET || 'docavail-dev-jwt-secret-change-me';
+
+function base64UrlEncode(input) {
+    return Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function base64UrlDecode(input) {
+    const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    return Buffer.from(padded, 'base64').toString('utf8');
+}
+
+function issueJwt(payload, expiresInSeconds = AUTH_TOKEN_TTL_SECONDS) {
+    const header = { alg: 'HS256', typ: 'JWT' };
+    const now = Math.floor(Date.now() / 1000);
+    const fullPayload = {
+        ...payload,
+        iss: 'docavail',
+        iat: now,
+        exp: now + expiresInSeconds
+    };
+    const encodedHeader = base64UrlEncode(JSON.stringify(header));
+    const encodedPayload = base64UrlEncode(JSON.stringify(fullPayload));
+    const unsigned = `${encodedHeader}.${encodedPayload}`;
+    const signature = crypto.createHmac('sha256', JWT_SECRET).update(unsigned).digest('base64url');
+    return `${unsigned}.${signature}`;
+}
+
+function verifyJwt(token) {
+    if (!token || typeof token !== 'string') return null;
+    const parts = token.trim().split('.');
+    if (parts.length !== 3) return null;
+    const [encodedHeader, encodedPayload, signature] = parts;
+    const expectedSignature = crypto.createHmac('sha256', JWT_SECRET).update(`${encodedHeader}.${encodedPayload}`).digest('base64url');
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expectedSignature);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
+    try {
+        const payload = JSON.parse(base64UrlDecode(encodedPayload));
+        if (!payload || typeof payload !== 'object') return null;
+        if (payload.exp && payload.exp <= Math.floor(Date.now() / 1000)) return null;
+        return payload;
+    } catch (e) {
+        return null;
+    }
+}
+
+function getAuthToken(req) {
+    const auth = req.headers.authorization;
+    if (typeof auth === 'string' && auth.startsWith('Bearer ')) return auth.slice(7).trim();
+    const legacy = req.headers['x-dashboard-token'];
+    return typeof legacy === 'string' ? legacy.trim() : '';
+}
+
+function requireJwtAuth(kind) {
+    return (req, res, next) => {
+        const payload = verifyJwt(getAuthToken(req));
+        if (!payload) {
+            return res.status(401).json({ error: 'Unauthorized - please log in' });
+        }
+        if (kind && payload.kind !== kind) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        req.auth = payload;
+        next();
+    };
+}
+
+const requirePatientAuth = requireJwtAuth('patient');
+const requireAnyAuth = requireJwtAuth();
+
 function isBcryptHash(value) {
     return typeof value === 'string' && /^\$2[aby]\$\d{2}\$/.test(value);
 }
@@ -242,6 +322,9 @@ async function cleanExpiredSlots() {
 setInterval(() => cleanExpiredSlots().catch(err => console.error('Slot cleanup error:', err.message)), 60 * 1000);
 cleanExpiredSlots().catch(err => console.error('Slot cleanup error:', err.message));
 
+// Use JWT-based auth for dashboard writes.
+requireDashboardAuth = requireJwtAuth('dashboard');
+
 // ==============================
 // PATIENT AUTH ROUTES
 // ==============================
@@ -254,13 +337,28 @@ app.post('/api/patients/register', loginLimiter, async (req, res) => {
         if (password.length < 8) {
             return res.status(400).json({ error: 'Password must be at least 8 characters' });
         }
-        const existing = await Patient.findOne({ email: email.toLowerCase() });
+        const normalizedEmail = normalizeEmail(email);
+        if (!isValidEmail(normalizedEmail)) {
+            return res.status(400).json({ error: 'Please enter a valid email address' });
+        }
+        const existing = await Patient.findOne({ email: normalizedEmail });
         if (existing) return res.status(400).json({ error: 'Email already registered' });
         // Hash password before saving — plain text never stored
         const hashedPassword = await bcrypt.hash(password, 10);
-        const patient = new Patient({ name, email: email.toLowerCase(), password: hashedPassword, phone, age, address });
+        const patient = new Patient({ name, email: normalizedEmail, password: hashedPassword, phone, age, address });
         await patient.save();
-        res.status(201).json({ success: true, patient: { id: patient._id, name: patient.name, email: patient.email } });
+        const token = issueJwt({
+            kind: 'patient',
+            patientId: patient._id.toString(),
+            name: patient.name,
+            email: patient.email,
+            phone: patient.phone
+        });
+        res.status(201).json({
+            success: true,
+            patient: { id: patient._id, name: patient.name, email: patient.email, phone: patient.phone, age: patient.age },
+            token
+        });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -270,12 +368,23 @@ app.post('/api/patients/login', loginLimiter, async (req, res) => {
     try {
         const { email, password } = req.body;
         if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
-        const patient = await Patient.findOne({ email: email.toLowerCase() });
+        const normalizedEmail = normalizeEmail(email);
+        if (!isValidEmail(normalizedEmail)) {
+            return res.status(400).json({ error: 'Please enter a valid email address' });
+        }
+        const patient = await Patient.findOne({ email: normalizedEmail });
         if (!patient) return res.status(404).json({ error: 'No account found with this email' });
         // Compare entered password with hashed password in DB
         const isMatch = await bcrypt.compare(password, patient.password);
         if (!isMatch) return res.status(401).json({ error: 'Incorrect password. Forgot your password? Contact admin: docavail4@gmail.com' });
-        res.json({ success: true, patient: { id: patient._id, name: patient.name, email: patient.email, phone: patient.phone, age: patient.age } });
+        const token = issueJwt({
+            kind: 'patient',
+            patientId: patient._id.toString(),
+            name: patient.name,
+            email: patient.email,
+            phone: patient.phone
+        });
+        res.json({ success: true, patient: { id: patient._id, name: patient.name, email: patient.email, phone: patient.phone, age: patient.age }, token });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -353,7 +462,7 @@ app.post('/api/hospitals/login', loginLimiter, async (req, res) => {
         const hospital = await Hospital.findOne({ hospitalId: parseInt(hospitalId) });
         if (!hospital) return res.status(404).json({ error: 'Hospital not found' });
         if (!(await verifyStoredPassword(hospital, password))) return res.status(401).json({ error: 'Invalid password' });
-        const token = issueDashboardToken(HOSP_TOKENS, hospital.hospitalId);
+        const token = issueJwt({ kind: 'dashboard', dashboardType: 'hospital', subjectId: hospital.hospitalId, hospitalId: hospital.hospitalId });
         res.json({ success: true, hospital: stripSecretFields(hospital), token });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -588,9 +697,14 @@ app.delete('/api/slots/:id', requireDashboardAuth, async (req, res) => {
 // BOOKING ROUTES
 // ==============================
 // POST create booking
-app.post('/api/bookings', async (req, res) => {
+app.post('/api/bookings', requirePatientAuth, async (req, res) => {
     try {
-        const { patientId, patientName, patientAge, patientContact, patientDescription, doctorId, hospitalId, slotId } = req.body;
+        const patientId = req.auth.patientId;
+        const patientName = req.auth.name || req.body.patientName;
+        const patientAge = req.body.patientAge ?? null;
+        const patientContact = req.auth.phone || req.body.patientContact || '';
+        const patientDescription = req.body.patientDescription || '';
+        const { doctorId, hospitalId, slotId } = req.body;
 
         // Get slot
         const slot = await TimeSlot.findById(slotId);
@@ -638,7 +752,7 @@ app.post('/api/bookings', async (req, res) => {
         const bookingId = 'BK' + Date.now();
         const booking = new Booking({
             bookingId,
-            patientId: patientId || null,
+            patientId,
             patientName,
             patientAge,
             patientContact,
@@ -665,7 +779,7 @@ app.post('/api/bookings', async (req, res) => {
 });
 
 // GET bookings for hospital
-app.get('/api/bookings/hospital/:hospitalId', async (req, res) => {
+app.get('/api/bookings/hospital/:hospitalId', requireDashboardAuth, async (req, res) => {
     try {
         const hospitalId = parseInt(req.params.hospitalId);
         const bookings = await Booking.find({ hospitalId, status: { $ne: 'cancelled' } })
@@ -677,7 +791,7 @@ app.get('/api/bookings/hospital/:hospitalId', async (req, res) => {
 });
 
 // GET bookings for clinic (by clinicId field or doctorId == clinicId)
-app.get('/api/bookings/clinic/:clinicId', async (req, res) => {
+app.get('/api/bookings/clinic/:clinicId', requireDashboardAuth, async (req, res) => {
     try {
         const clinicId = parseInt(req.params.clinicId);
         const clinic = await Clinic.findOne({ clinicId });
@@ -694,8 +808,11 @@ app.get('/api/bookings/clinic/:clinicId', async (req, res) => {
 });
 
 // GET bookings for patient
-app.get('/api/bookings/patient/:patientId', async (req, res) => {
+app.get('/api/bookings/patient/:patientId', requireAnyAuth, async (req, res) => {
     try {
+        if (req.auth.kind === 'patient' && String(req.params.patientId) !== String(req.auth.patientId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
         const bookings = await Booking.find({ patientId: req.params.patientId })
             .sort({ date: -1 });
         res.json(bookings);
@@ -705,7 +822,7 @@ app.get('/api/bookings/patient/:patientId', async (req, res) => {
 });
 
 // GET all bookings for hospital including full patient history (dashboard use)
-app.get('/api/bookings/hospital/:hospitalId/all', async (req, res) => {
+app.get('/api/bookings/hospital/:hospitalId/all', requireDashboardAuth, async (req, res) => {
     try {
         const hospitalId = parseInt(req.params.hospitalId);
         const bookings = await Booking.find({ hospitalId })
@@ -717,10 +834,13 @@ app.get('/api/bookings/hospital/:hospitalId/all', async (req, res) => {
 });
 
 // DELETE booking (cancel/soft-delete)
-app.delete('/api/bookings/:id', async (req, res) => {
+app.delete('/api/bookings/:id', requireAnyAuth, async (req, res) => {
     try {
         const booking = await Booking.findById(req.params.id);
         if (!booking) return res.status(404).json({ error: 'Booking not found' });
+        if (req.auth.kind === 'patient' && String(booking.patientId) !== String(req.auth.patientId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
         booking.status = 'cancelled';
         await booking.save();
         // Decrement slot count
@@ -737,12 +857,15 @@ app.delete('/api/bookings/:id', async (req, res) => {
 });
 
 // PATCH reschedule a booking — move to new slotId
-app.patch('/api/bookings/:id/reschedule', async (req, res) => {
+app.patch('/api/bookings/:id/reschedule', requireAnyAuth, async (req, res) => {
     try {
         const { newSlotId } = req.body;
         if (!newSlotId) return res.status(400).json({ error: 'newSlotId is required' });
         const booking = await Booking.findById(req.params.id);
         if (!booking) return res.status(404).json({ error: 'Booking not found' });
+        if (req.auth.kind === 'patient' && String(booking.patientId) !== String(req.auth.patientId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
         if (booking.status === 'cancelled') return res.status(400).json({ error: 'Cannot reschedule a cancelled booking' });
         const newSlot = await TimeSlot.findById(newSlotId);
         if (!newSlot) return res.status(404).json({ error: 'New slot not found' });
@@ -770,10 +893,13 @@ app.patch('/api/bookings/:id/reschedule', async (req, res) => {
 });
 
 // HARD DELETE booking (permanently remove from DB — used by Clear History / Remove)
-app.delete('/api/bookings/:id/hard', async (req, res) => {
+app.delete('/api/bookings/:id/hard', requireAnyAuth, async (req, res) => {
     try {
         const booking = await Booking.findById(req.params.id);
         if (!booking) return res.status(404).json({ error: 'Booking not found' });
+        if (req.auth.kind === 'patient' && String(booking.patientId) !== String(req.auth.patientId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
         // If still active, decrement slot count first
         if (booking.status !== 'cancelled' && booking.slotId) {
             const slot = await TimeSlot.findById(booking.slotId);
@@ -1005,7 +1131,7 @@ app.post('/api/clinics/login', loginLimiter, async (req, res) => {
         const clinic = await Clinic.findOne({ clinicId: parseInt(clinicId) });
         if (!clinic) return res.status(404).json({ error: 'Clinic not found' });
         if (!(await verifyStoredPassword(clinic, password))) return res.status(401).json({ error: 'Invalid password' });
-        const token = issueDashboardToken(CLINIC_TOKENS, clinic.clinicId);
+        const token = issueJwt({ kind: 'dashboard', dashboardType: 'clinic', subjectId: clinic.clinicId, clinicId: clinic.clinicId });
         res.json({ success: true, clinic: stripSecretFields(clinic), token });
     } catch (error) {
         res.status(500).json({ error: error.message });

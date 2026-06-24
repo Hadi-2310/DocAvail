@@ -83,6 +83,7 @@ const STATE = {
     currentHospitalId: null,
     currentClinicId: null,
     dashboardToken: null, // set on hospital/clinic login
+    patientToken: null,
     selectedHospitalId: null,
     selectedDoctor: null,
     doctorDetailBackTo: 'doctors-list-screen',
@@ -115,10 +116,13 @@ async function apiFetch(path, opts = {}) {
     if (!opts.method || opts.method === 'GET') {
         opts.cache = 'no-store';
     }
-    // Attach dashboard token to write requests
-    if (opts.method && opts.method !== 'GET' && STATE.dashboardToken) {
+    const token = STATE.dashboardToken || STATE.patientToken;
+    if (token) {
         opts.headers = opts.headers || {};
-        opts.headers['X-Dashboard-Token'] = STATE.dashboardToken;
+        opts.headers['Authorization'] = `Bearer ${token}`;
+        if (STATE.dashboardToken) {
+            opts.headers['X-Dashboard-Token'] = STATE.dashboardToken;
+        }
     }
     const res = await fetch(API_URL + path, opts);
     if (!res.ok) {
@@ -129,7 +133,10 @@ async function apiFetch(path, opts = {}) {
 }
 function dashHeaders() {
     const h = { 'Content-Type': 'application/json' };
-    if (STATE.dashboardToken) h['X-Dashboard-Token'] = STATE.dashboardToken;
+    if (STATE.dashboardToken) {
+        h['Authorization'] = `Bearer ${STATE.dashboardToken}`;
+        h['X-Dashboard-Token'] = STATE.dashboardToken;
+    }
     return h;
 }
 async function fetchHospitals() { try { const d = await apiFetch('/hospitals'); STATE.hospitals = d; return d; } catch(e) { return []; } }
@@ -254,23 +261,33 @@ function switchAuthTab(tab) {
     document.getElementById('patient-login-form').style.display = tab==='login' ? 'block':'none';
     document.getElementById('patient-register-form').style.display = tab==='register' ? 'block':'none';
 }
+function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
 async function handlePatientLogin(event) {
     event.preventDefault();
-    const email = document.getElementById('login-email').value;
+    const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
     const errEl = document.getElementById('login-error');
     errEl.style.display = 'none';
+    if (!isValidEmail(email)) {
+        errEl.textContent = 'Please enter a valid email address';
+        errEl.style.display = 'block';
+        return;
+    }
     try {
         const res = await fetch(`${API_URL}/patients/login`, {
             method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password})
         });
         const data = await res.json();
         if (!res.ok) { errEl.textContent = data.error||'Login failed'; errEl.style.display='block'; return; }
+        STATE.dashboardToken = null;
         STATE.currentPatient = data.patient;
+        STATE.patientToken = data.token || null;
         navigateToScreen('hospital-list-screen');
     } catch(e) {
-        STATE.currentPatient = { id:1, name:email.split('@')[0], email, phone:'' };
-        navigateToScreen('hospital-list-screen');
+        errEl.textContent = 'Cannot connect to server. Is it running?';
+        errEl.style.display = 'block';
     }
 }
 async function handlePatientRegister(event) {
@@ -280,14 +297,22 @@ async function handlePatientRegister(event) {
           password=document.getElementById('reg-password').value;
     const errEl=document.getElementById('register-error'), okEl=document.getElementById('register-success');
     errEl.style.display='none'; okEl.style.display='none';
+    if (!isValidEmail(email)) {
+        errEl.textContent = 'Please enter a valid email address';
+        errEl.style.display = 'block';
+        return;
+    }
     try {
         const res = await fetch(`${API_URL}/patients/register`, {
             method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name,email,phone,age,password})
         });
         const data = await res.json();
         if (!res.ok) { errEl.textContent=data.error||'Registration failed'; errEl.style.display='block'; return; }
-        okEl.textContent='Account created! Please login.'; okEl.style.display='block';
-        setTimeout(()=>switchAuthTab('login'), 1500);
+        STATE.dashboardToken = null;
+        STATE.currentPatient = data.patient;
+        STATE.patientToken = data.token || null;
+        okEl.textContent='Account created! Signing you in...'; okEl.style.display='block';
+        setTimeout(()=>navigateToScreen('hospital-list-screen'), 900);
     } catch(e) { errEl.textContent='Connection error. Is the server running?'; errEl.style.display='block'; }
 }
 async function handleHospitalLogin(event) {
@@ -302,6 +327,8 @@ async function handleHospitalLogin(event) {
         });
         const data = await res.json();
         if (data.success) {
+            STATE.currentPatient = null;
+            STATE.patientToken = null;
             STATE.dashboardToken = data.token || null;
             navigateToScreen('hospital-dashboard', id);
         } else {
@@ -325,6 +352,8 @@ async function handleClinicLogin(e) {
         });
         const data = await res.json();
         if (data.success) {
+            STATE.currentPatient = null;
+            STATE.patientToken = null;
             STATE.dashboardToken = data.token || null;
             navigateToScreen('clinic-dashboard', id);
         } else {
@@ -338,7 +367,7 @@ async function handleClinicLogin(e) {
         else showToast(msg, 'error');
     }
 }
-function logoutPatient() { STATE.currentPatient = null; navigateToScreen('welcome'); }
+function logoutPatient() { STATE.currentPatient = null; STATE.patientToken = null; navigateToScreen('welcome'); }
 async function refreshHospitalDashboard() {
     showToast('Refreshing...', '');
     await Promise.all([refreshDashStats(), (STATE.currentDashTab === 'doctors' ? renderDashDoctors() : STATE.currentDashTab === 'slots' ? renderDashSlots() : renderDashBookings())]);
@@ -1289,7 +1318,7 @@ async function renderDashBookings() {
 async function cancelServerBooking(id) {
     const ok = await showConfirmDialog({ title: 'Cancel Booking', message: 'Are you sure you want to cancel this appointment?', okLabel: 'Yes, Cancel', okColor: '#f59e0b', icon: '' });
     if (!ok) return;
-    await fetch(`${API_URL}/bookings/${id}`,{method:'DELETE'});
+    await apiFetch('/bookings/' + id, { method: 'DELETE' });
     await renderDashBookings(); showToast('Booking cancelled','');
 }
 // Clear ALL booking history for hospital dashboard
@@ -1300,7 +1329,7 @@ async function clearHospitalBookingHistory() {
         const bookings = await fetchBookingsForHospital(STATE.currentHospitalId);
         const clearable = bookings.filter(isBookingClearable);
         if (!clearable.length) { showToast('No past or cancelled bookings to clear', ''); return; }
-        await Promise.all(clearable.map(b =>fetch(`${API_URL}/bookings/${b._id}/hard`, { method: 'DELETE' })));
+        await Promise.all(clearable.map(b =>apiFetch('/bookings/' + b._id + '/hard', { method: 'DELETE' })));
     } catch(e) {}
     renderDashBookings();
     showToast('Booking history cleared', 'success');
@@ -1312,7 +1341,7 @@ async function clearClinicBookingHistory() {
         const bookings = await apiFetch('/bookings/clinic/' + STATE.currentClinicId);
         const clearable = bookings.filter(isBookingClearable);
         if (!clearable.length) { showToast('No past or cancelled bookings to clear', ''); return; }
-        await Promise.all(clearable.map(b =>fetch(`${API_URL}/bookings/${b._id}/hard`, { method: 'DELETE' })));
+        await Promise.all(clearable.map(b =>apiFetch('/bookings/' + b._id + '/hard', { method: 'DELETE' })));
     } catch(e) {}
     // Also clear local fallback bookings for this clinic (only clearable ones)
     const now = new Date();
@@ -1841,7 +1870,7 @@ async function clearPatientBookingHistory() {
             if (!clearable.length && !getAllBookings().filter(b => (b.patientId || 'guest') === (pid || 'guest') && isBookingClearable(b)).length) {
                 showToast('No past or cancelled bookings to clear', ''); return;
             }
-            await Promise.all(clearable.map(b =>fetch(`${API_URL}/bookings/${b._id}/hard`, { method: 'DELETE' })));
+            await Promise.all(clearable.map(b =>apiFetch('/bookings/' + b._id + '/hard', { method: 'DELETE' })));
         } catch(e) {}
     }
     // Clear only clearable localStorage bookings for this patient
@@ -2091,7 +2120,7 @@ async function cancelServerBookingAndRefresh(serverId, context='patient') {
     const ok = await showConfirmDialog({ title: 'Cancel Booking', message: 'Are you sure you want to cancel this appointment?', okLabel: 'Yes, Cancel', okColor: '#f59e0b', icon: '' });
     if (!ok) return;
     try {
-        await fetch(`${API_URL}/bookings/${serverId}`, { method: 'DELETE' });
+        await apiFetch('/bookings/' + serverId, { method: 'DELETE' });
         showToast('Booking cancelled', '');
     } catch(e) { showToast('Could not cancel. Try again.', 'error'); return; }
     if(context==='hospital') renderDashBookings();
@@ -2103,7 +2132,7 @@ async function removeServerBooking(serverId, context='patient') {
     const ok = await showConfirmDialog({ title: 'Remove Booking', message: 'Remove this booking from your history? This cannot be undone.', okLabel: 'Remove', okColor: '#ef4444', icon: '' });
     if (!ok) return;
     try {
-        await fetch(`${API_URL}/bookings/${serverId}/hard`, { method: 'DELETE' });
+        await apiFetch('/bookings/' + serverId + '/hard', { method: 'DELETE' });
     } catch(e) {}
     if(context==='hospital') renderDashBookings();
     else if(context==='clinic') renderBookingsForClinic(STATE.currentClinicId);
