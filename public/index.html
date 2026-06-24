@@ -758,7 +758,12 @@
     <div class="modal-card">
         <div class="modal-header">
             <h3 id="modal-title">Add Doctor</h3>
-            <button class="modal-close-btn" onclick="closeDoctorModal()"></button></div>
+            <button class="modal-close-btn" onclick="closeDoctorModal()" aria-label="Close dialog">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M18 6 6 18"></path>
+                    <path d="M6 6l12 12"></path>
+                </svg>
+            </button></div>
         <form id="doctor-form" class="modal-form" onsubmit="saveDoctorForm(event)">
             <div class="form-row-2">
                 <div class="form-group"><label>Doctor Name *</label><input type="text" id="doctor-name" required placeholder="Dr. Full Name"></div>
@@ -799,7 +804,12 @@
     <div class="modal-card" style="max-width:360px">
         <div class="modal-header">
             <h3>Edit Time Slot</h3>
-            <button class="modal-close-btn" onclick="closeEditSlotModal()"></button></div>
+            <button class="modal-close-btn" onclick="closeEditSlotModal()" aria-label="Close dialog">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M18 6 6 18"></path>
+                    <path d="M6 6l12 12"></path>
+                </svg>
+            </button></div>
         <div class="modal-form" style="padding:16px">
             <div class="form-group"><label>Date</label><input type="date" id="edit-slot-date"></div>
             <div class="form-group"><label>Time</label><input type="time" id="edit-slot-time"></div>
@@ -814,7 +824,12 @@
     <div class="modal-card">
         <div class="modal-header">
             <h3>Book Appointment</h3>
-            <button class="modal-close-btn" onclick="closeBookingModal()"></button></div>
+            <button class="modal-close-btn" onclick="closeBookingModal()" aria-label="Close dialog">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M18 6 6 18"></path>
+                    <path d="M6 6l12 12"></path>
+                </svg>
+            </button></div>
         <div class="booking-modal-wrap">
             <div class="booking-doctor-preview" id="booking-doctor-preview"></div>
             <div id="booking-dup-warning" style="display:none;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:10px 14px;font-size:.82rem;color:#92400e;margin-bottom:4px;font-weight:600;"></div>
@@ -835,7 +850,12 @@
     <div class="modal-card modal-sm">
         <div class="modal-header">
             <h3>Confirm Delete</h3>
-            <button class="modal-close-btn" onclick="closeDeleteModal()"></button></div>
+            <button class="modal-close-btn" onclick="closeDeleteModal()" aria-label="Close dialog">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M18 6 6 18"></path>
+                    <path d="M6 6l12 12"></path>
+                </svg>
+            </button></div>
         <div class="modal-body">
             <p>Delete <strong id="delete-doctor-name"></strong>?</p>
             <p style="color:#EF4444;font-size:.85rem;margin-top:8px">This cannot be undone.</p></div>
