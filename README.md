@@ -35,5 +35,6 @@ Check out the live prototype here: https://docavail.onrender.com/
 - **Developers:**
 - Abdul Hadi Hashim
 - Abhinanth MS
-- **LinkedIn:** www.linkedin.com/in/abdul-hadi-hashim-61971a332
+- **LinkedIn:**
+- www.linkedin.com/in/abdul-hadi-hashim-61971a332
 - https://www.linkedin.com/in/abhinanthms/
