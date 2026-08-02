@@ -1831,7 +1831,7 @@ async function confirmBooking() {
             };
             const all = getAllBookings(); all.unshift(booking); saveAllBookings(all);
         } else {
-            const result = await fetch(`${API_URL}/bookings`, {
+            const result = await apiFetch('/bookings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
