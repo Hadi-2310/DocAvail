@@ -149,14 +149,32 @@ const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
 const APP_BASE_URL = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
 
-const mailTransporter = (SMTP_HOST && SMTP_USER && SMTP_PASS)
-    ? nodemailer.createTransport({
-        host: SMTP_HOST,
-        port: SMTP_PORT,
-        secure: SMTP_SECURE,
-        auth: { user: SMTP_USER, pass: SMTP_PASS }
-    })
-    : null;
+let mailTransporter = null;
+
+async function initMailer() {
+    if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
+        mailTransporter = nodemailer.createTransport({
+            host: SMTP_HOST,
+            port: SMTP_PORT,
+            secure: SMTP_SECURE,
+            auth: { user: SMTP_USER, pass: SMTP_PASS },
+        });
+        console.info('[DocAvail] ✅  SMTP transporter configured.');
+    } else {
+        // Fallback to Ethereal test account (no real credentials needed)
+        const testAccount = await nodemailer.createTestAccount();
+        mailTransporter = nodemailer.createTransport({
+            host: testAccount.smtp.host,
+            port: testAccount.smtp.port,
+            secure: testAccount.smtp.secure,
+            auth: { user: testAccount.user, pass: testAccount.pass },
+        });
+        console.info('[DocAvail] Using Ethereal test email account – preview URLs will be logged to console.');
+    }
+}
+
+// Initialise mailer when the server boots
+initMailer().catch(err => console.error('Failed to initialize mailer:', err));
 
 function makeVerificationToken() {
     return crypto.randomBytes(32).toString('hex');
