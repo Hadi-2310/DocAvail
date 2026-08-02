@@ -268,6 +268,13 @@ function isValidEmail(value) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
 
+function toggleChangePasswordFields() {
+    const fields = document.getElementById('change-password-fields');
+    if (fields) {
+        fields.style.display = fields.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
 function openEditProfileModal() {
     if (!STATE.currentPatient) {
         showToast('Please log in first', 'error');
@@ -280,6 +287,12 @@ function openEditProfileModal() {
         document.getElementById('edit-prof-phone').value = STATE.currentPatient.phone || '';
         document.getElementById('edit-prof-age').value = STATE.currentPatient.age || '';
         document.getElementById('edit-prof-address').value = STATE.currentPatient.address || '';
+        const passFields = document.getElementById('change-password-fields');
+        if (passFields) passFields.style.display = 'none';
+        const currPass = document.getElementById('change-prof-curr-pass');
+        const newPass = document.getElementById('change-prof-new-pass');
+        if (currPass) currPass.value = '';
+        if (newPass) newPass.value = '';
         document.getElementById('edit-profile-error').style.display = 'none';
         modal.style.display = 'flex';
     }
@@ -296,6 +309,11 @@ async function handleEditProfileSubmit(event) {
     const phone = document.getElementById('edit-prof-phone').value.trim();
     const age = parseInt(document.getElementById('edit-prof-age').value);
     const address = document.getElementById('edit-prof-address').value.trim();
+    const currPassEl = document.getElementById('change-prof-curr-pass');
+    const newPassEl = document.getElementById('change-prof-new-pass');
+    const currPass = currPassEl ? currPassEl.value : '';
+    const newPass = newPassEl ? newPassEl.value : '';
+
     const errEl = document.getElementById('edit-profile-error');
     const btn = document.getElementById('btn-save-edit-profile');
 
@@ -315,6 +333,18 @@ async function handleEditProfileSubmit(event) {
         errEl.style.display = 'block';
         return;
     }
+    if (currPass || newPass) {
+        if (!currPass) {
+            errEl.textContent = 'Please enter your current password to change password';
+            errEl.style.display = 'block';
+            return;
+        }
+        if (!newPass || newPass.length < 8) {
+            errEl.textContent = 'New password must be at least 8 characters long';
+            errEl.style.display = 'block';
+            return;
+        }
+    }
 
     btn.disabled = true;
     btn.textContent = 'Saving...';
@@ -326,9 +356,18 @@ async function handleEditProfileSubmit(event) {
             body: JSON.stringify({ name, phone, age, address })
         });
         STATE.currentPatient = data.patient;
+
+        if (currPass && newPass) {
+            await apiFetch('/patients/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPassword: currPass, newPassword: newPass })
+            });
+        }
+
         updatePatientGreeting();
         closeEditProfileModal();
-        showToast('Profile updated successfully!', 'success');
+        showToast(currPass && newPass ? 'Profile & password updated successfully!' : 'Profile updated successfully!', 'success');
     } catch(e) {
         errEl.textContent = e.message || 'Failed to update profile';
         errEl.style.display = 'block';
@@ -337,6 +376,175 @@ async function handleEditProfileSubmit(event) {
         btn.textContent = 'Save Changes';
     }
 }
+
+// FORGOT PASSWORD FUNCTIONS
+function openForgotPasswordModal(e) {
+    if (e) e.preventDefault();
+    const modal = document.getElementById('forgot-password-modal');
+    if (modal) {
+        const loginEmail = document.getElementById('login-email')?.value.trim() || '';
+        if (loginEmail && isValidEmail(loginEmail)) {
+            document.getElementById('forgot-email').value = loginEmail;
+        }
+        document.getElementById('forgot-request-error').style.display = 'none';
+        document.getElementById('forgot-request-success').style.display = 'none';
+        document.getElementById('forgot-reset-error').style.display = 'none';
+        document.getElementById('forgot-reset-success').style.display = 'none';
+        switchForgotTab('request');
+        modal.style.display = 'flex';
+    }
+}
+
+function closeForgotPasswordModal() {
+    const modal = document.getElementById('forgot-password-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function switchForgotTab(tab) {
+    const reqTab = document.getElementById('tab-forgot-request');
+    const resetTab = document.getElementById('tab-forgot-reset');
+    const reqForm = document.getElementById('forgot-request-form');
+    const resetForm = document.getElementById('forgot-reset-form');
+
+    if (!reqTab || !resetTab || !reqForm || !resetForm) return;
+
+    if (tab === 'request') {
+        reqTab.style.background = '#fff';
+        reqTab.style.color = '#0f172a';
+        reqTab.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        resetTab.style.background = 'transparent';
+        resetTab.style.color = '#64748b';
+        resetTab.style.boxShadow = 'none';
+        reqForm.style.display = 'block';
+        resetForm.style.display = 'none';
+    } else {
+        resetTab.style.background = '#fff';
+        resetTab.style.color = '#0f172a';
+        resetTab.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        reqTab.style.background = 'transparent';
+        reqTab.style.color = '#64748b';
+        reqTab.style.boxShadow = 'none';
+        resetForm.style.display = 'block';
+        reqForm.style.display = 'none';
+    }
+}
+
+async function handleForgotPasswordSubmit(event) {
+    event.preventDefault();
+    const email = document.getElementById('forgot-email').value.trim();
+    const errEl = document.getElementById('forgot-request-error');
+    const okEl = document.getElementById('forgot-request-success');
+    const btn = document.getElementById('btn-forgot-request');
+
+    errEl.style.display = 'none';
+    okEl.style.display = 'none';
+
+    if (!isValidEmail(email)) {
+        errEl.textContent = 'Please enter a valid email address';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    try {
+        const res = await fetch(`${API_URL}/patients/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            errEl.textContent = data.error || 'Failed to request password reset';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        let msg = data.message || 'Password reset instructions sent to your email address.';
+        if (data.resetToken) {
+            document.getElementById('reset-token-input').value = data.resetToken;
+            msg += `<br><span style="display:inline-block;margin-top:6px;"><strong>Dev Token:</strong> <code style="background:#e2e8f0;padding:2px 6px;border-radius:4px;">${data.resetToken}</code></span>`;
+        }
+        okEl.innerHTML = msg;
+        okEl.style.display = 'block';
+
+        if (data.resetToken) {
+            setTimeout(() => {
+                switchForgotTab('reset');
+            }, 2500);
+        }
+    } catch(e) {
+        errEl.textContent = 'Connection error. Is the server running?';
+        errEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send Reset Link';
+    }
+}
+
+async function handleResetPasswordSubmit(event) {
+    event.preventDefault();
+    const token = document.getElementById('reset-token-input').value.trim();
+    const newPassword = document.getElementById('reset-new-password').value;
+    const confirmPassword = document.getElementById('reset-confirm-password').value;
+    const errEl = document.getElementById('forgot-reset-error');
+    const okEl = document.getElementById('forgot-reset-success');
+    const btn = document.getElementById('btn-forgot-reset');
+
+    errEl.style.display = 'none';
+    okEl.style.display = 'none';
+
+    if (!token) {
+        errEl.textContent = 'Please enter your password reset token';
+        errEl.style.display = 'block';
+        return;
+    }
+    if (newPassword.length < 8) {
+        errEl.textContent = 'New password must be at least 8 characters long';
+        errEl.style.display = 'block';
+        return;
+    }
+    if (newPassword !== confirmPassword) {
+        errEl.textContent = 'Passwords do not match';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Resetting...';
+
+    try {
+        const res = await fetch(`${API_URL}/patients/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, newPassword })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            errEl.textContent = data.error || 'Password reset failed';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        okEl.textContent = data.message || 'Password reset successfully! You can now log in.';
+        okEl.style.display = 'block';
+        showToast('Password reset successfully! Please log in.', 'success');
+
+        setTimeout(() => {
+            closeForgotPasswordModal();
+            navigateToScreen('patient-login');
+            switchAuthTab('login');
+        }, 1800);
+    } catch(e) {
+        errEl.textContent = 'Connection error. Is the server running?';
+        errEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Reset Password';
+    }
+}
+
 
 async function handlePatientLogin(event) {
     event.preventDefault();
@@ -2274,7 +2482,20 @@ document.addEventListener('DOMContentLoaded', () => {
     style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
     document.head.appendChild(style);
     const params = new URLSearchParams(location.search);
-    if (params.get('verified') === '1') {
+    if (params.get('resetToken')) {
+        const token = params.get('resetToken');
+        setTimeout(() => {
+            navigateToScreen('patient-login');
+            openForgotPasswordModal();
+            document.getElementById('reset-token-input').value = token;
+            switchForgotTab('reset');
+            showToast('Enter your new password below.', 'info');
+        }, 600);
+        params.delete('resetToken');
+        params.delete('email');
+        const nextUrl = `${location.pathname}${params.toString() ? `?${params.toString()}` : ''}${location.hash || ''}`;
+        history.replaceState({}, '', nextUrl);
+    } else if (params.get('verified') === '1') {
         setTimeout(() => showToast('Email verified successfully. You can log in now.', 'success'), 500);
         params.delete('verified');
         const nextUrl = `${location.pathname}${params.toString() ? `?${params.toString()}` : ''}${location.hash || ''}`;
@@ -2287,3 +2508,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     setTimeout(()=>navigateToScreen('welcome'), 2500);
 });
+

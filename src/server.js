@@ -195,6 +195,40 @@ async function sendVerificationEmail(patient, token, req) {
     return { sent: false, verificationUrl };
 }
 
+async function sendPasswordResetEmail(patient, token, req) {
+    const resetUrl = `${APP_BASE_URL}/?resetToken=${encodeURIComponent(token)}&email=${encodeURIComponent(patient.email)}`;
+    const from = EMAIL_FROM;
+    const to = patient.email;
+    const subject = 'Reset your DocAvail Password';
+    const text = [
+        `Hi ${patient.name},`,
+        '',
+        'You requested a password reset for your DocAvail account.',
+        'Use the link below to reset your password:',
+        resetUrl,
+        '',
+        `Alternatively, your password reset token is: ${token}`,
+        '',
+        'This link and token will expire in 1 hour.',
+        'If you did not request this, please ignore this message.'
+    ].join('\n');
+
+    if (mailTransporter) {
+        await mailTransporter.sendMail({
+            from,
+            to,
+            subject,
+            text,
+            html: `<p>Hi ${escapeHtml(patient.name)},</p><p>You requested a password reset for your DocAvail account. Click the link below to reset your password:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>Or enter this reset token: <strong>${escapeHtml(token)}</strong></p><p>This link and token expire in 1 hour.</p><p>If you did not request this, please ignore this message.</p>`
+        });
+        return { sent: true, resetUrl };
+    }
+
+    console.log(`[DocAvail] Password reset link for ${patient.email}: ${resetUrl}`);
+    return { sent: false, resetUrl };
+}
+
+
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, ch => ({
         '&': '&amp;',
@@ -455,7 +489,8 @@ app.post('/api/patients/login', loginLimiter, async (req, res) => {
         }
         // Compare entered password with hashed password in DB
         const isMatch = await bcrypt.compare(password, patient.password);
-        if (!isMatch) return res.status(401).json({ error: 'Incorrect password. Forgot your password? Contact admin: docavail4@gmail.com' });
+        if (!isMatch) return res.status(401).json({ error: 'Incorrect password. Click "Forgot password?" to reset it.' });
+
         const token = issueJwt({
             kind: 'patient',
             patientId: patient._id.toString(),
@@ -565,8 +600,115 @@ app.post('/api/patients/resend-verification', loginLimiter, async (req, res) => 
 });
 
 // ==============================
-// PATIENT PASSWORD RESET ROUTES
+// PATIENT PASSWORD RESET & CHANGE ROUTES
 // ==============================
+
+app.post('/api/patients/forgot-password', loginLimiter, async (req, res) => {
+    try {
+        const { email } = req.body;
+        const normalizedEmail = normalizeEmail(email);
+        if (!isValidEmail(normalizedEmail)) {
+            return res.status(400).json({ error: 'Please enter a valid email address' });
+        }
+        const patient = await Patient.findOne({ email: normalizedEmail });
+        if (!patient) {
+            return res.json({
+                success: true,
+                message: 'If an account exists with this email, password reset instructions have been sent.'
+            });
+        }
+
+        const resetToken = makeVerificationToken();
+        patient.resetPasswordTokenHash = hashVerificationToken(resetToken);
+        patient.resetPasswordExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
+        await patient.save();
+
+        const emailResult = await sendPasswordResetEmail(patient, resetToken, req);
+
+        res.json({
+            success: true,
+            message: 'Password reset instructions sent to your email address.',
+            resetLink: process.env.NODE_ENV === 'production' ? undefined : emailResult.resetUrl,
+            resetToken: process.env.NODE_ENV === 'production' ? undefined : resetToken
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/patients/reset-password', loginLimiter, async (req, res) => {
+    try {
+        const { email, token, newPassword } = req.body;
+        if (!token || typeof token !== 'string' || !token.trim()) {
+            return res.status(400).json({ error: 'Password reset token is required' });
+        }
+        if (!newPassword || newPassword.length < 8) {
+            return res.status(400).json({ error: 'New password must be at least 8 characters long' });
+        }
+
+        const cleanToken = token.trim();
+        const tokenHash = hashVerificationToken(cleanToken);
+
+        const query = {
+            resetPasswordTokenHash: tokenHash,
+            resetPasswordExpiresAt: { $gt: new Date() }
+        };
+        if (email && isValidEmail(email)) {
+            query.email = normalizeEmail(email);
+        }
+
+        const patient = await Patient.findOne(query);
+        if (!patient) {
+            return res.status(400).json({ error: 'Invalid or expired password reset token' });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        patient.password = hashedPassword;
+        patient.resetPasswordTokenHash = null;
+        patient.resetPasswordExpiresAt = null;
+        await patient.save();
+
+        res.json({
+            success: true,
+            message: 'Password reset successfully! You can now log in with your new password.'
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/patients/change-password', requirePatientAuth, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'Current password and new password are required' });
+        }
+        if (newPassword.length < 8) {
+            return res.status(400).json({ error: 'New password must be at least 8 characters long' });
+        }
+
+        const patient = await Patient.findById(req.auth.patientId);
+        if (!patient) {
+            return res.status(404).json({ error: 'Patient account not found' });
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, patient.password);
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Current password is incorrect' });
+        }
+
+        patient.password = await bcrypt.hash(newPassword, 10);
+        await patient.save();
+
+        res.json({
+            success: true,
+            message: 'Password changed successfully'
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 
 // Helper to send password reset email
 async function sendPasswordResetEmail(patient, token, req) {
