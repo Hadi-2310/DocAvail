@@ -1979,9 +1979,9 @@ function renderBookingCard(b, context='patient') {
     return `<div class="booking-card ${isCompleted ? 'booking-card-completed' : ''}" id="bcard-${sid||lid}">
       <div class="booking-card-date">
         <span class="bk-month">${months[d.getMonth()]}</span>
-        <span class="bk-day">${d.getDate()}</span>
-        ${urgencyBadge}</div>
+        <span class="bk-day">${d.getDate()}</span></div>
       <div class="booking-card-info">
+        ${urgencyBadge ? `<div style="margin-bottom:4px">${urgencyBadge}</div>` : ''}
         <h4>${b.doctorName}</h4>
         <p>${b.specialization||''}</p>
         <span class="booking-time-pill"> ${b.time}</span>
