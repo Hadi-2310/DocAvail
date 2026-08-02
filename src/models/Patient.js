@@ -12,6 +12,8 @@ const patientSchema = new mongoose.Schema({
     emailVerificationTokenHash: { type: String, default: null },
     emailVerificationExpiresAt: { type: Date, default: null },
     emailVerificationSentAt: { type: Date, default: null },
+  resetPasswordTokenHash: { type: String, default: null },
+  resetPasswordExpiresAt: { type: Date, default: null },
     emailVerifiedAt: { type: Date, default: null }
 }, { timestamps: true });
 

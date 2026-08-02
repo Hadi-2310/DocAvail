@@ -268,11 +268,25 @@ function isValidEmail(value) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
 // ── Google Sign-In & Profile Completion ──────────────────────────────────
-window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'GOOGLE_AUTH_SUCCESS') {
-        processGoogleAuth({ email: event.data.email, name: event.data.name, googleId: 'g_' + Date.now() });
+// ── Google Sign‑In using Google Identity Services (GSI) ────────────────────
+function initializeGoogleSignIn() {
+    if (!window.google || !google.accounts) {
+        console.error('Google Identity Services library not loaded');
+        return;
     }
-});
+    google.accounts.id.initialize({
+        client_id: window.GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredentialResponse,
+        // auto_select: true // optional
+    });
+    google.accounts.id.renderButton(
+        document.getElementById('gsi-button'),
+        { type: 'standard', theme: 'outline', size: 'large' }
+    );
+    // Optionally show One‑Tap prompt
+    // google.accounts.id.prompt();
+}
+window.addEventListener('load', initializeGoogleSignIn);
 
 function triggerGoogleSignIn() {
     const width = 520;
