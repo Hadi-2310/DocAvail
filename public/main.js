@@ -269,32 +269,53 @@ function isValidEmail(value) {
 }
 // ── Google Sign-In & Profile Completion ──────────────────────────────────
 function triggerGoogleSignIn() {
-    // If Google GIS client ID is loaded and available
-    if (window.google && google.accounts && google.accounts.id) {
+    // If a valid Google Client ID is configured on the window/env
+    if (window.GOOGLE_CLIENT_ID && window.google && google.accounts && google.accounts.id) {
         try {
             google.accounts.id.initialize({
-                client_id: '109283749281-dummygoogleclientid.apps.googleusercontent.com', // Placeholder / Configurable
+                client_id: window.GOOGLE_CLIENT_ID,
                 callback: handleGoogleCredentialResponse,
                 auto_select: false
             });
             google.accounts.id.prompt((notification) => {
                 if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                    fallbackGoogleSignInPrompt();
+                    openGoogleAccountModal();
                 }
             });
             return;
-        } catch(e) {
-            // Fall back to prompt
-        }
+        } catch(e) {}
     }
-    fallbackGoogleSignInPrompt();
+    openGoogleAccountModal();
 }
 
-function fallbackGoogleSignInPrompt() {
-    const userEmail = prompt("Sign in with Google\n\nEnter your Google email address:");
-    if (!userEmail || !userEmail.trim()) return;
+function openGoogleAccountModal() {
+    const modal = document.getElementById('google-account-modal');
+    if (modal) {
+        document.getElementById('custom-google-email').value = '';
+        modal.style.display = 'flex';
+    }
+}
+
+function closeGoogleAccountModal() {
+    const modal = document.getElementById('google-account-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function selectGoogleAccount(email, name) {
+    closeGoogleAccountModal();
+    processGoogleAuth({ email, name, googleId: 'g_' + Date.now() });
+}
+
+function submitCustomGoogleEmail() {
+    const emailInput = document.getElementById('custom-google-email');
+    const userEmail = emailInput ? emailInput.value.trim() : '';
+    if (!userEmail || !isValidEmail(userEmail)) {
+        showToast('Please enter a valid email address', 'error');
+        return;
+    }
     const name = userEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    processGoogleAuth({ email: userEmail.trim(), name: name, googleId: 'g_' + Date.now() });
+    closeGoogleAccountModal();
+    processGoogleAuth({ email: userEmail, name: name, googleId: 'g_' + Date.now() });
 }
 
 async function handleGoogleCredentialResponse(response) {
