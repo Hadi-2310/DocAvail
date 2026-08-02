@@ -626,36 +626,12 @@ app.post('/api/patients/resend-verification', loginLimiter, async (req, res) => 
 // ==============================
 
 app.post('/api/patients/forgot-password', loginLimiter, async (req, res) => {
-    try {
-        const { email } = req.body;
-        const normalizedEmail = normalizeEmail(email);
-        if (!isValidEmail(normalizedEmail)) {
-            return res.status(400).json({ error: 'Please enter a valid email address' });
-        }
-        const patient = await Patient.findOne({ email: normalizedEmail });
-        if (!patient) {
-            return res.json({
-                success: true,
-                message: 'If an account exists with this email, password reset instructions have been sent.'
-            });
-        }
-
-        const resetToken = makeVerificationToken();
-        patient.resetPasswordTokenHash = hashVerificationToken(resetToken);
-        patient.resetPasswordExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
-        await patient.save();
-
-        const emailResult = await sendPasswordResetEmail(patient, resetToken, req);
-
-        res.json({
-            success: true,
-            message: 'Password reset instructions sent to your email address.',
-            resetLink: process.env.NODE_ENV === 'production' ? undefined : emailResult.resetUrl,
-            resetToken: process.env.NODE_ENV === 'production' ? undefined : resetToken
-        });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    // In production we do not send automated reset emails.
+    // Instead instruct the user to contact the administrator.
+    return res.json({
+        success: true,
+        message: 'Please contact admin at docavail4@gmail.com to reset your password.'
+    });
 });
 
 app.post('/api/patients/reset-password', loginLimiter, async (req, res) => {
@@ -766,29 +742,6 @@ async function sendPasswordResetEmail(patient, token, req) {
     return { sent: false, resetUrl };
 }
 
-// Request password reset (forgot password)
-app.post('/api/patients/forgot-password', loginLimiter, async (req, res) => {
-    try {
-        const { email } = req.body;
-        const normalizedEmail = normalizeEmail(email);
-        if (!isValidEmail(normalizedEmail)) {
-            return res.status(400).json({ error: 'Please provide a valid email address' });
-        }
-        const patient = await Patient.findOne({ email: normalizedEmail });
-        if (!patient) {
-            // Do not reveal existence of account
-            return res.json({ success: true, message: 'If an account with that email exists, a reset link has been sent.' });
-        }
-        const token = makeVerificationToken();
-        patient.resetPasswordTokenHash = hashVerificationToken(token);
-        patient.resetPasswordExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-        await patient.save();
-        const emailResult = await sendPasswordResetEmail(patient, token, req);
-        res.json({
-            success: true,
-            message: 'If an account with that email exists, a reset link has been sent.',
-            resetLink: process.env.NODE_ENV === 'production' ? undefined : emailResult.resetUrl
-        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
