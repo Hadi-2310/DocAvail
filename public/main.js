@@ -379,20 +379,14 @@ async function handleEditProfileSubmit(event) {
 
 // FORGOT PASSWORD FUNCTIONS
 function openForgotPasswordModal(e) {
+    // Deprecated: Forgot password functionality removed.
     if (e) e.preventDefault();
-    const modal = document.getElementById('forgot-password-modal');
-    if (modal) {
-        const loginEmail = document.getElementById('login-email')?.value.trim() || '';
-        if (loginEmail && isValidEmail(loginEmail)) {
-            document.getElementById('forgot-email').value = loginEmail;
-        }
-        document.getElementById('forgot-request-error').style.display = 'none';
-        document.getElementById('forgot-request-success').style.display = 'none';
-        document.getElementById('forgot-reset-error').style.display = 'none';
-        document.getElementById('forgot-reset-success').style.display = 'none';
-        switchForgotTab('request');
-        modal.style.display = 'flex';
-    }
+    showToast('Contact admin docavail4@gmail.com', 'info');
+}
+
+function showForgotPasswordMessage(e) {
+    if (e) e.preventDefault();
+    showToast('Contact admin docavail4@gmail.com', 'info');
 }
 
 function closeForgotPasswordModal() {
@@ -562,13 +556,13 @@ async function handlePatientLogin(event) {
             method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password})
         });
         const data = await res.json();
-        if (!res.ok) { errEl.textContent = data.error||'Login failed'; errEl.style.display='block'; return; }
+        if (!res.ok) { errEl.textContent = 'Contact admin docavail4@gmail.com'; errEl.style.display='block'; return; }
         STATE.dashboardToken = null;
         STATE.currentPatient = data.patient;
         STATE.patientToken = data.token || null;
         navigateToScreen('hospital-list-screen');
     } catch(e) {
-        errEl.textContent = 'Cannot connect to server. Is it running?';
+        errEl.textContent = 'Contact admin docavail4@gmail.com';
         errEl.style.display = 'block';
     }
 }
@@ -1423,7 +1417,7 @@ async function processVoiceQuery(transcript) {
 
     if (!results.length) {
         respEl.innerHTML = `No results found for <strong>"${transcript}"</strong>.<br>
-          <span style="font-size:.82rem;color:#6b7280">Try saying a department like <em>"cardiology"</em>, or a hospital name like <em>"KIMS"</em>.</span>`;
+          <span style="font-size:.82rem;color:var(--gray-500)"><a href="#" onclick="showForgotPasswordMessage(event)" style="font-size:.82rem;color:#2563eb;font-weight:600;text-decoration:none;">Forgot password?</a> Try saying a department like <em>"cardiology"</em>, or a hospital name like <em>"KIMS"</em>.</span>`;
         document.getElementById('voice-status').textContent = 'Tap to try again';
         return;
     }
