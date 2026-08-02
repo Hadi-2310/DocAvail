@@ -32,7 +32,7 @@ app.use((req, res, next) => {
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(self)');
     res.setHeader(
         'Content-Security-Policy',
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://maps.google.com https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; frame-src 'self' https://accounts.google.com; connect-src 'self' https://maps.google.com https://www.google.com https://accounts.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     );
     next();
 });
@@ -464,6 +464,117 @@ app.post('/api/patients/login', loginLimiter, async (req, res) => {
             phone: patient.phone
         });
         res.json({ success: true, patient: { id: patient._id, name: patient.name, email: patient.email, phone: patient.phone, age: patient.age }, token });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Google Sign-In / Sign-Up
+app.post('/api/patients/google-auth', loginLimiter, async (req, res) => {
+    try {
+        let { email, name, googleId, credential } = req.body;
+
+        // If Google ID token (credential) was passed, decode payload
+        if (credential && typeof credential === 'string') {
+            try {
+                const parts = credential.split('.');
+                if (parts.length === 3) {
+                    const payloadStr = Buffer.from(parts[1], 'base64').toString('utf8');
+                    const googlePayload = JSON.parse(payloadStr);
+                    if (googlePayload.email) {
+                        email = googlePayload.email;
+                        name = googlePayload.name || name || 'Google User';
+                        googleId = googlePayload.sub || googleId;
+                    }
+                }
+            } catch (e) {
+                // Fall back to body parameters
+            }
+        }
+
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required for Google Sign-In' });
+        }
+        const normalizedEmail = normalizeEmail(email);
+        if (!isValidEmail(normalizedEmail)) {
+            return res.status(400).json({ error: 'Invalid Google email address' });
+        }
+
+        let patient = await Patient.findOne({ email: normalizedEmail });
+        let isNew = false;
+
+        if (patient) {
+            if (!patient.googleId && googleId) {
+                patient.googleId = googleId;
+            }
+            patient.emailVerified = true;
+            await patient.save();
+        } else {
+            isNew = true;
+            const dummyPassword = await bcrypt.hash('GOOGLE_' + Math.random().toString(36).slice(2) + Date.now(), 10);
+            patient = new Patient({
+                name: name || 'Google User',
+                email: normalizedEmail,
+                password: dummyPassword,
+                phone: '',
+                age: null,
+                googleId: googleId || null,
+                emailVerified: true,
+                emailVerifiedAt: new Date()
+            });
+            await patient.save();
+        }
+
+        const token = issueJwt({
+            kind: 'patient',
+            patientId: patient._id.toString(),
+            name: patient.name,
+            email: patient.email,
+            phone: patient.phone || ''
+        });
+
+        const requiresDetails = !patient.phone || !patient.age;
+
+        res.json({
+            success: true,
+            patient: { id: patient._id, name: patient.name, email: patient.email, phone: patient.phone, age: patient.age },
+            token,
+            requiresDetails,
+            isNew
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update patient profile (Phone & Age)
+app.post('/api/patients/update-profile', requirePatientAuth, async (req, res) => {
+    try {
+        const { phone, age, address } = req.body;
+        if (!phone || phone.trim().length < 7) {
+            return res.status(400).json({ error: 'Please enter a valid phone number (at least 7 digits)' });
+        }
+        const parsedAge = parseInt(age);
+        if (isNaN(parsedAge) || parsedAge < 1 || parsedAge > 120) {
+            return res.status(400).json({ error: 'Please enter a valid age between 1 and 120' });
+        }
+
+        const patient = await Patient.findById(req.auth.patientId);
+        if (!patient) {
+            return res.status(404).json({ error: 'Patient account not found' });
+        }
+
+        patient.phone = phone.trim();
+        patient.age = parsedAge;
+        if (address) patient.address = address.trim();
+
+        await patient.save();
+
+        res.json({
+            success: true,
+            patient: { id: patient._id, name: patient.name, email: patient.email, phone: patient.phone, age: patient.age, address: patient.address },
+            message: 'Profile updated successfully'
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

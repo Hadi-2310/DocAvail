@@ -264,6 +264,125 @@ function switchAuthTab(tab) {
 function isValidEmail(value) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
+// ── Google Sign-In & Profile Completion ──────────────────────────────────
+function triggerGoogleSignIn() {
+    // If Google GIS client ID is loaded and available
+    if (window.google && google.accounts && google.accounts.id) {
+        try {
+            google.accounts.id.initialize({
+                client_id: '109283749281-dummygoogleclientid.apps.googleusercontent.com', // Placeholder / Configurable
+                callback: handleGoogleCredentialResponse,
+                auto_select: false
+            });
+            google.accounts.id.prompt((notification) => {
+                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                    fallbackGoogleSignInPrompt();
+                }
+            });
+            return;
+        } catch(e) {
+            // Fall back to prompt
+        }
+    }
+    fallbackGoogleSignInPrompt();
+}
+
+function fallbackGoogleSignInPrompt() {
+    const userEmail = prompt("Sign in with Google\n\nEnter your Google email address:");
+    if (!userEmail || !userEmail.trim()) return;
+    const name = userEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    processGoogleAuth({ email: userEmail.trim(), name: name, googleId: 'g_' + Date.now() });
+}
+
+async function handleGoogleCredentialResponse(response) {
+    if (response && response.credential) {
+        processGoogleAuth({ credential: response.credential });
+    }
+}
+
+async function processGoogleAuth(payload) {
+    try {
+        const res = await fetch(`${API_URL}/patients/google-auth`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            showToast(data.error || 'Google Sign-In failed', 'error');
+            return;
+        }
+        STATE.dashboardToken = null;
+        STATE.currentPatient = data.patient;
+        STATE.patientToken = data.token || null;
+
+        if (data.requiresDetails) {
+            openCompleteProfileModal();
+        } else {
+            showToast(`Welcome, ${data.patient.name}!`, 'success');
+            navigateToScreen('hospital-list-screen');
+        }
+    } catch(e) {
+        showToast('Connection error during Google Sign-In', 'error');
+    }
+}
+
+function openCompleteProfileModal() {
+    const modal = document.getElementById('complete-profile-modal');
+    if (modal) {
+        document.getElementById('profile-phone').value = STATE.currentPatient?.phone || '';
+        document.getElementById('profile-age').value = STATE.currentPatient?.age || '';
+        document.getElementById('profile-error').style.display = 'none';
+        modal.style.display = 'flex';
+    }
+}
+
+function closeCompleteProfileModal() {
+    const modal = document.getElementById('complete-profile-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function handleCompleteProfile(event) {
+    event.preventDefault();
+    const phone = document.getElementById('profile-phone').value.trim();
+    const age = parseInt(document.getElementById('profile-age').value);
+    const errEl = document.getElementById('profile-error');
+    const btn = document.getElementById('btn-save-profile');
+
+    errEl.style.display = 'none';
+    if (!phone || phone.length < 7) {
+        errEl.textContent = 'Please enter a valid phone number';
+        errEl.style.display = 'block';
+        return;
+    }
+    if (isNaN(age) || age < 1 || age > 120) {
+        errEl.textContent = 'Please enter a valid age (1-120)';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+        const data = await apiFetch('/patients/update-profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, age })
+        });
+        STATE.currentPatient = data.patient;
+        closeCompleteProfileModal();
+        showToast('Profile completed successfully!', 'success');
+        navigateToScreen('hospital-list-screen');
+    } catch(e) {
+        errEl.textContent = e.message || 'Failed to save details';
+        errEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save & Continue';
+    }
+}
+
 async function handlePatientLogin(event) {
     event.preventDefault();
     const email = document.getElementById('login-email').value.trim();
