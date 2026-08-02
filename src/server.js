@@ -857,8 +857,16 @@ app.post('/api/bookings', requirePatientAuth, async (req, res) => {
             const existingOnSlot = await Booking.findOne({ slotId, patientId, status: { $ne: 'cancelled' } });
             if (existingOnSlot) return res.status(400).json({ error: 'You have already booked this time slot.' });
 
-            // Note: we only block booking the exact same slot twice (above).
-            // Same-day same-doctor is allowed — patient may want a different time slot.
+            // Block same doctor + same day (only one appointment per doctor per day)
+            const existingSameDay = await Booking.findOne({
+                patientId,
+                doctorId,
+                date: slot.date,
+                status: { $ne: 'cancelled' }
+            });
+            if (existingSameDay) {
+                return res.status(400).json({ error: 'You already have a booking with this doctor on this date. Only one appointment per doctor per day is allowed.' });
+            }
         }
         // ── End duplicate prevention ──────────────────────────────────────────
 
