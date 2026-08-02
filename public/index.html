@@ -490,6 +490,10 @@
                     <p id="patient-welcome-text">Find available doctors</p></div></div>
             <div class="header-actions">
                 <span class="welcome-badge" id="patient-greeting-badge" style="display:none"> <span id="greeting-name">Welcome!</span></span>
+                <button class="btn-edit-profile" id="btn-edit-profile" style="display:none" onclick="openEditProfileModal()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Edit Profile
+                </button>
                 <button class="btn-logout" onclick="logoutPatient()">Logout</button></div>
         </header>
 
@@ -942,6 +946,55 @@
       </div>
       <p id="profile-error" style="color:#ef4444;font-size:.82rem;display:none;margin-bottom:12px;text-align:center"></p>
       <button type="submit" id="btn-save-profile" class="btn-primary-full" style="width:100%;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:.95rem;cursor:pointer">Save & Continue</button>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div id="edit-profile-modal" class="modal-overlay" style="display:none;z-index:9999">
+  <div class="modal-card modal-sm" style="max-width:440px;padding:28px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:42px;height:42px;background:#f0f9ff;color:#0284c7;border-radius:12px;display:flex;align-items:center;justify-content:center">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div>
+          <h3 style="font-size:1.15rem;font-weight:800;color:var(--dark);margin:0">Edit Profile</h3>
+          <p style="font-size:.8rem;color:var(--gray-500);margin:2px 0 0">Update your patient personal details</p>
+        </div>
+      </div>
+      <button onclick="closeEditProfileModal()" style="background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <form id="edit-profile-form" onsubmit="handleEditProfileSubmit(event)">
+      <div class="form-group" style="margin-bottom:14px">
+        <label style="display:block;font-size:.82rem;font-weight:600;margin-bottom:6px;color:#334155">Full Name <span style="color:#ef4444">*</span></label>
+        <input type="text" id="edit-prof-name" required placeholder="Your full name" style="width:100%;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:.9rem">
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label style="display:block;font-size:.82rem;font-weight:600;margin-bottom:6px;color:#334155">Email</label>
+        <input type="email" id="edit-prof-email" disabled style="width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;border-radius:10px;font-size:.9rem;cursor:not-allowed">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div class="form-group">
+          <label style="display:block;font-size:.82rem;font-weight:600;margin-bottom:6px;color:#334155">Phone Number <span style="color:#ef4444">*</span></label>
+          <input type="tel" id="edit-prof-phone" required placeholder="Phone number" style="width:100%;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:.9rem">
+        </div>
+        <div class="form-group">
+          <label style="display:block;font-size:.82rem;font-weight:600;margin-bottom:6px;color:#334155">Age <span style="color:#ef4444">*</span></label>
+          <input type="number" id="edit-prof-age" required min="1" max="120" placeholder="Age" style="width:100%;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:.9rem">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:20px">
+        <label style="display:block;font-size:.82rem;font-weight:600;margin-bottom:6px;color:#334155">Address (Optional)</label>
+        <input type="text" id="edit-prof-address" placeholder="City or area" style="width:100%;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:.9rem">
+      </div>
+      <p id="edit-profile-error" style="color:#ef4444;font-size:.82rem;display:none;margin-bottom:14px;text-align:center"></p>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button type="button" onclick="closeEditProfileModal()" style="padding:10px 18px;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-weight:600;cursor:pointer;font-size:.88rem">Cancel</button>
+        <button type="submit" id="btn-save-edit-profile" style="padding:10px 22px;border-radius:10px;border:none;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;font-size:.88rem">Save Changes</button>
+      </div>
     </form>
   </div>
 </div>

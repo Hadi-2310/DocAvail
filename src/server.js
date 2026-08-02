@@ -547,26 +547,30 @@ app.post('/api/patients/google-auth', loginLimiter, async (req, res) => {
     }
 });
 
-// Update patient profile (Phone & Age)
 app.post('/api/patients/update-profile', requirePatientAuth, async (req, res) => {
     try {
-        const { phone, age, address } = req.body;
-        if (!phone || phone.trim().length < 7) {
-            return res.status(400).json({ error: 'Please enter a valid phone number (at least 7 digits)' });
-        }
-        const parsedAge = parseInt(age);
-        if (isNaN(parsedAge) || parsedAge < 1 || parsedAge > 120) {
-            return res.status(400).json({ error: 'Please enter a valid age between 1 and 120' });
-        }
-
+        const { name, phone, age, address } = req.body;
         const patient = await Patient.findById(req.auth.patientId);
         if (!patient) {
             return res.status(404).json({ error: 'Patient account not found' });
         }
 
-        patient.phone = phone.trim();
-        patient.age = parsedAge;
-        if (address) patient.address = address.trim();
+        if (name && name.trim().length >= 2) {
+            patient.name = name.trim();
+        }
+        if (phone && phone.trim().length >= 7) {
+            patient.phone = phone.trim();
+        }
+        if (age !== undefined && age !== null && age !== '') {
+            const parsedAge = parseInt(age);
+            if (isNaN(parsedAge) || parsedAge < 1 || parsedAge > 120) {
+                return res.status(400).json({ error: 'Please enter a valid age between 1 and 120' });
+            }
+            patient.age = parsedAge;
+        }
+        if (address !== undefined) {
+            patient.address = address.trim();
+        }
 
         await patient.save();
 

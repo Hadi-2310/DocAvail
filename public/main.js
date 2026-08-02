@@ -247,12 +247,15 @@ async function refreshDashStats() {
 function updatePatientGreeting() {
     const badge = document.getElementById('patient-greeting-badge');
     const wt = document.getElementById('patient-welcome-text');
+    const editBtn = document.getElementById('btn-edit-profile');
     if (STATE.currentPatient) {
         if (badge) { badge.style.display=''; document.getElementById('greeting-name').textContent = STATE.currentPatient.name; }
         if (wt) wt.textContent = `Welcome back, ${STATE.currentPatient.name}`;
+        if (editBtn) editBtn.style.display = 'inline-flex';
     } else {
         if (badge) badge.style.display='none';
         if (wt) wt.textContent = 'Find available doctors';
+        if (editBtn) editBtn.style.display = 'none';
     }
 }
 function switchAuthTab(tab) {
@@ -380,6 +383,76 @@ async function handleCompleteProfile(event) {
     } finally {
         btn.disabled = false;
         btn.textContent = 'Save & Continue';
+    }
+}
+
+function openEditProfileModal() {
+    if (!STATE.currentPatient) {
+        showToast('Please log in first', 'error');
+        return;
+    }
+    const modal = document.getElementById('edit-profile-modal');
+    if (modal) {
+        document.getElementById('edit-prof-name').value = STATE.currentPatient.name || '';
+        document.getElementById('edit-prof-email').value = STATE.currentPatient.email || '';
+        document.getElementById('edit-prof-phone').value = STATE.currentPatient.phone || '';
+        document.getElementById('edit-prof-age').value = STATE.currentPatient.age || '';
+        document.getElementById('edit-prof-address').value = STATE.currentPatient.address || '';
+        document.getElementById('edit-profile-error').style.display = 'none';
+        modal.style.display = 'flex';
+    }
+}
+
+function closeEditProfileModal() {
+    const modal = document.getElementById('edit-profile-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function handleEditProfileSubmit(event) {
+    event.preventDefault();
+    const name = document.getElementById('edit-prof-name').value.trim();
+    const phone = document.getElementById('edit-prof-phone').value.trim();
+    const age = parseInt(document.getElementById('edit-prof-age').value);
+    const address = document.getElementById('edit-prof-address').value.trim();
+    const errEl = document.getElementById('edit-profile-error');
+    const btn = document.getElementById('btn-save-edit-profile');
+
+    errEl.style.display = 'none';
+    if (!name || name.length < 2) {
+        errEl.textContent = 'Please enter a valid full name (at least 2 characters)';
+        errEl.style.display = 'block';
+        return;
+    }
+    if (!phone || phone.length < 7) {
+        errEl.textContent = 'Please enter a valid phone number (at least 7 digits)';
+        errEl.style.display = 'block';
+        return;
+    }
+    if (isNaN(age) || age < 1 || age > 120) {
+        errEl.textContent = 'Please enter a valid age (1-120)';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+        const data = await apiFetch('/patients/update-profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, phone, age, address })
+        });
+        STATE.currentPatient = data.patient;
+        updatePatientGreeting();
+        closeEditProfileModal();
+        showToast('Profile updated successfully!', 'success');
+    } catch(e) {
+        errEl.textContent = e.message || 'Failed to update profile';
+        errEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
     }
 }
 
