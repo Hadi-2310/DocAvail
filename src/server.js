@@ -181,14 +181,18 @@ async function sendVerificationEmail(patient, token, req) {
     ].join('\n');
 
     if (mailTransporter) {
-        await mailTransporter.sendMail({
-            from,
-            to,
-            subject,
-            text,
-            html: `<p>Hi ${escapeHtml(patient.name)},</p><p>Please verify your email address to activate your DocAvail account:</p><p><a href="${verificationUrl}">${verificationUrl}</a></p><p>If you did not create this account, you can ignore this message.</p>`
-        });
-        return { sent: true, verificationUrl };
+        try {
+            await mailTransporter.sendMail({
+                from,
+                to,
+                subject,
+                text,
+                html: `<p>Hi ${escapeHtml(patient.name)}</p><p>Please verify your email address to activate your DocAvail account:</p><p><a href="${verificationUrl}">${verificationUrl}</a></p><p>If you did not create this account, you can ignore this message.</p>`
+            });
+            return { sent: true, verificationUrl };
+        } catch (err) {
+            console.error('[DocAvail] Error sending verification email:', err);
+        }
     }
 
     console.log(`[DocAvail] Verification link for ${patient.email}: ${verificationUrl}`);
