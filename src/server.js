@@ -742,10 +742,7 @@ async function sendPasswordResetEmail(patient, token, req) {
     return { sent: false, resetUrl };
 }
 
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+
 
 // Perform password reset using token
 app.post('/api/patients/reset-password', async (req, res) => {
