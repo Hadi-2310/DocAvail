@@ -268,54 +268,29 @@ function isValidEmail(value) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
 // ── Google Sign-In & Profile Completion ──────────────────────────────────
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+        processGoogleAuth({ email: event.data.email, name: event.data.name, googleId: 'g_' + Date.now() });
+    }
+});
+
 function triggerGoogleSignIn() {
-    // If a valid Google Client ID is configured on the window/env
-    if (window.GOOGLE_CLIENT_ID && window.google && google.accounts && google.accounts.id) {
-        try {
-            google.accounts.id.initialize({
-                client_id: window.GOOGLE_CLIENT_ID,
-                callback: handleGoogleCredentialResponse,
-                auto_select: false
-            });
-            google.accounts.id.prompt((notification) => {
-                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                    openGoogleAccountModal();
-                }
-            });
-            return;
-        } catch(e) {}
+    const width = 520;
+    const height = 640;
+    const left = Math.max(0, Math.round((window.screen.width - width) / 2));
+    const top = Math.max(0, Math.round((window.screen.height - height) / 2));
+
+    let authUrl = '/google-auth-popup.html';
+    if (window.GOOGLE_CLIENT_ID) {
+        authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(window.GOOGLE_CLIENT_ID)}&redirect_uri=${encodeURIComponent(window.location.origin + '/google-auth-popup.html')}&response_type=token&scope=email%20profile`;
     }
-    openGoogleAccountModal();
-}
 
-function openGoogleAccountModal() {
-    const modal = document.getElementById('google-account-modal');
-    if (modal) {
-        document.getElementById('custom-google-email').value = '';
-        modal.style.display = 'flex';
-    }
-}
-
-function closeGoogleAccountModal() {
-    const modal = document.getElementById('google-account-modal');
-    if (modal) modal.style.display = 'none';
-}
-
-function selectGoogleAccount(email, name) {
-    closeGoogleAccountModal();
-    processGoogleAuth({ email, name, googleId: 'g_' + Date.now() });
-}
-
-function submitCustomGoogleEmail() {
-    const emailInput = document.getElementById('custom-google-email');
-    const userEmail = emailInput ? emailInput.value.trim() : '';
-    if (!userEmail || !isValidEmail(userEmail)) {
-        showToast('Please enter a valid email address', 'error');
-        return;
-    }
-    const name = userEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    closeGoogleAccountModal();
-    processGoogleAuth({ email: userEmail, name: name, googleId: 'g_' + Date.now() });
+    const popup = window.open(
+        authUrl,
+        'GoogleSignIn',
+        `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=no,resizable=yes`
+    );
+    if (popup) popup.focus();
 }
 
 async function handleGoogleCredentialResponse(response) {
