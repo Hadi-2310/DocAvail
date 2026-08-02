@@ -32,7 +32,7 @@ app.use((req, res, next) => {
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(self)');
     res.setHeader(
         'Content-Security-Policy',
-        "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; frame-src 'self' https://accounts.google.com; connect-src 'self' https://maps.google.com https://www.google.com https://accounts.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; frame-src 'self'; connect-src 'self' https://maps.google.com https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     );
     next();
 });
@@ -469,17 +469,6 @@ app.post('/api/patients/login', loginLimiter, async (req, res) => {
     }
 });
 
-// Google Sign-In / Sign-Up
-app.post('/api/patients/google-auth', loginLimiter, async (req, res) => {
-    try {
-        let { email, name, googleId, credential } = req.body;
-
-        // If Google ID token (credential) was passed, decode payload
-        if (credential && typeof credential === 'string') {
-            try {
-                const parts = credential.split('.');
-                if (parts.length === 3) {
-                    const payloadStr = Buffer.from(parts[1], 'base64').toString('utf8');
                     const googlePayload = JSON.parse(payloadStr);
                     if (googlePayload.email) {
                         email = googlePayload.email;
