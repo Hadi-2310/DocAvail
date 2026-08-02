@@ -468,45 +468,32 @@ app.post('/api/patients/login', loginLimiter, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
-                    const googlePayload = JSON.parse(payloadStr);
-                    if (googlePayload.email) {
-                        email = googlePayload.email;
-                        name = googlePayload.name || name || 'Google User';
-                        googleId = googlePayload.sub || googleId;
-                    }
-                }
-            } catch (e) {
-                // Fall back to body parameters
-            }
-        }
-
-        if (!email) {
-            return res.status(400).json({ error: 'Email is required for Google Sign-In' });
-        }
+app.post('/api/patients/google-signin', async (req, res) => {
+    try {
+        const { idToken } = req.body;
+        if (!idToken) return res.status(400).json({ error: 'Google ID token required' });
+        // In production, verify idToken with google-auth-library. Here we assume payload is sent directly.
+        const googlePayload = JSON.parse(Buffer.from(idToken, 'base64').toString('utf-8'));
+        const email = googlePayload.email;
+        const name = googlePayload.name || 'Google User';
+        const googleId = googlePayload.sub;
+        if (!email) return res.status(400).json({ error: 'Email is required for Google Sign-In' });
         const normalizedEmail = normalizeEmail(email);
-        if (!isValidEmail(normalizedEmail)) {
-            return res.status(400).json({ error: 'Invalid Google email address' });
-        }
+        if (!isValidEmail(normalizedEmail)) return res.status(400).json({ error: 'Invalid Google email address' });
 
         let patient = await Patient.findOne({ email: normalizedEmail });
         let isNew = false;
-
         if (patient) {
-            if (!patient.googleId && googleId) {
-                patient.googleId = googleId;
-            }
+            if (!patient.googleId && googleId) patient.googleId = googleId;
             patient.emailVerified = true;
             await patient.save();
         } else {
             isNew = true;
             const dummyPassword = await bcrypt.hash('GOOGLE_' + Math.random().toString(36).slice(2) + Date.now(), 10);
             patient = new Patient({
-                name: name || 'Google User',
+                name,
                 email: normalizedEmail,
                 password: dummyPassword,
-                phone: '',
-                age: null,
                 googleId: googleId || null,
                 emailVerified: true,
                 emailVerifiedAt: new Date()
@@ -626,6 +613,99 @@ app.post('/api/patients/resend-verification', loginLimiter, async (req, res) => 
             message: 'Verification email sent.',
             verificationLink: process.env.NODE_ENV === 'production' ? undefined : emailResult.verificationUrl
         });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ==============================
+// PATIENT PASSWORD RESET ROUTES
+// ==============================
+
+// Helper to send password reset email
+async function sendPasswordResetEmail(patient, token, req) {
+    const resetUrl = `${APP_BASE_URL}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(patient.email)}`;
+    const from = EMAIL_FROM;
+    const to = patient.email;
+    const subject = 'Reset your DocAvail password';
+    const text = [
+        `Hi ${patient.name},`,
+        '',
+        'You requested a password reset for your DocAvail account.',
+        `Click the link below to set a new password (valid for 1 hour):`,
+        resetUrl,
+        '',
+        'If you did not request this, you can ignore this email.'
+    ].join('\n');
+
+    if (mailTransporter) {
+        await mailTransporter.sendMail({
+            from,
+            to,
+            subject,
+            text,
+            html: `<p>Hi ${escapeHtml(patient.name)},</p>` +
+                `<p>You requested a password reset for your DocAvail account.</p>` +
+                `<p>Click the link below to set a new password (valid for 1 hour):</p>` +
+                `<a href="${resetUrl}">${resetUrl}</a>` +
+                `<p>If you did not request this, you can ignore this email.</p>`
+        });
+        return { sent: true, resetUrl };
+    }
+    console.log(`[DocAvail] Password reset link for ${patient.email}: ${resetUrl}`);
+    return { sent: false, resetUrl };
+}
+
+// Request password reset (forgot password)
+app.post('/api/patients/forgot-password', loginLimiter, async (req, res) => {
+    try {
+        const { email } = req.body;
+        const normalizedEmail = normalizeEmail(email);
+        if (!isValidEmail(normalizedEmail)) {
+            return res.status(400).json({ error: 'Please provide a valid email address' });
+        }
+        const patient = await Patient.findOne({ email: normalizedEmail });
+        if (!patient) {
+            // Do not reveal existence of account
+            return res.json({ success: true, message: 'If an account with that email exists, a reset link has been sent.' });
+        }
+        const token = makeVerificationToken();
+        patient.resetPasswordTokenHash = hashVerificationToken(token);
+        patient.resetPasswordExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+        await patient.save();
+        const emailResult = await sendPasswordResetEmail(patient, token, req);
+        res.json({
+            success: true,
+            message: 'If an account with that email exists, a reset link has been sent.',
+            resetLink: process.env.NODE_ENV === 'production' ? undefined : emailResult.resetUrl
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Perform password reset using token
+app.post('/api/patients/reset-password', async (req, res) => {
+    try {
+        const { token, email, newPassword } = req.body;
+        const normalizedEmail = normalizeEmail(email);
+        if (!isValidEmail(normalizedEmail) || typeof newPassword !== 'string' || newPassword.length < 8) {
+            return res.status(400).json({ error: 'Invalid request data' });
+        }
+        const tokenHash = hashVerificationToken(token);
+        const patient = await Patient.findOne({
+            email: normalizedEmail,
+            resetPasswordTokenHash: tokenHash,
+            resetPasswordExpiresAt: { $gt: new Date() }
+        });
+        if (!patient) {
+            return res.status(400).json({ error: 'Invalid or expired token' });
+        }
+        patient.password = await bcrypt.hash(newPassword, 10);
+        patient.resetPasswordTokenHash = null;
+        patient.resetPasswordExpiresAt = null;
+        await patient.save();
+        res.json({ success: true, message: 'Password has been reset. You can now log in.' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
