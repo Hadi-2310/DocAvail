@@ -468,60 +468,6 @@ app.post('/api/patients/login', loginLimiter, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.post('/api/patients/google-signin', async (req, res) => {
-    try {
-        const { idToken } = req.body;
-        if (!idToken) return res.status(400).json({ error: 'Google ID token required' });
-        // In production, verify idToken with google-auth-library. Here we assume payload is sent directly.
-        const googlePayload = JSON.parse(Buffer.from(idToken, 'base64').toString('utf-8'));
-        const email = googlePayload.email;
-        const name = googlePayload.name || 'Google User';
-        const googleId = googlePayload.sub;
-        if (!email) return res.status(400).json({ error: 'Email is required for Google Sign-In' });
-        const normalizedEmail = normalizeEmail(email);
-        if (!isValidEmail(normalizedEmail)) return res.status(400).json({ error: 'Invalid Google email address' });
-
-        let patient = await Patient.findOne({ email: normalizedEmail });
-        let isNew = false;
-        if (patient) {
-            if (!patient.googleId && googleId) patient.googleId = googleId;
-            patient.emailVerified = true;
-            await patient.save();
-        } else {
-            isNew = true;
-            const dummyPassword = await bcrypt.hash('GOOGLE_' + Math.random().toString(36).slice(2) + Date.now(), 10);
-            patient = new Patient({
-                name,
-                email: normalizedEmail,
-                password: dummyPassword,
-                googleId: googleId || null,
-                emailVerified: true,
-                emailVerifiedAt: new Date()
-            });
-            await patient.save();
-        }
-
-        const token = issueJwt({
-            kind: 'patient',
-            patientId: patient._id.toString(),
-            name: patient.name,
-            email: patient.email,
-            phone: patient.phone || ''
-        });
-
-        const requiresDetails = !patient.phone || !patient.age;
-
-        res.json({
-            success: true,
-            patient: { id: patient._id, name: patient.name, email: patient.email, phone: patient.phone, age: patient.age },
-            token,
-            requiresDetails,
-            isNew
-        });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
 
 app.post('/api/patients/update-profile', requirePatientAuth, async (req, res) => {
     try {
